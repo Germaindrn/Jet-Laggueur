@@ -7,6 +7,9 @@ app android/local.properties
 app android/*.iml
 app android/app/*.iml
 
+# Claude / AI tooling
+.claude/
+
 # OS / editor
 .DS_Store
 Thumbs.db
