@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jet Laggueur</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo"><img src="icon.png" alt="" class="logo-icon"> <span>Jet</span>Laggueur</div>
+  <div class="trip-selector">
+    <select id="trip-select" onchange="switchTrip(this.value)"></select>
+    <button class="btn btn-gold btn-sm" onclick="createTrip()">Nouveau</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteTrip()">Suppr.</button>
+    <button class="btn btn-ghost btn-sm" onclick="openExport()">↗ Export</button>
+    <button class="btn btn-ghost btn-sm" onclick="openImport()">↙ Import</button>
+    <button class="btn btn-ghost btn-sm" onclick="openSync()" title="Synchroniser via Pantry">☁ Sync</button>
+    <select id="theme-select" class="theme-select" onchange="setTheme(this.value)" title="Thème"></select>
+  </div>
+  <input type="text" id="trip-title-input" placeholder="Nom du voyage…" value="Mon Voyage">
+</header>
+
+<div class="map-panel">
+  <div id="map"></div>
+</div>
+
+<div class="main-content">
+  <button class="island-handle" onclick="toggleIsland()" aria-label="Réduire / Agrandir le panneau"><span class="island-grip"></span></button>
+  <details class="section section-collapsible" id="tab-jours" open>
+    <summary class="section-header">
+      <div class="icon">📅</div>
+      <h2>Calendrier du voyage</h2>
+      <span class="section-chevron">▾</span>
+    </summary>
+    <div class="section-body">
+        <div class="calendar-meta">
+          <div id="cal-meta-info"></div>
+          <div id="manual-controls" class="manual-date-controls" style="display:none;">
+            <label>Départ :</label>
+            <input type="date" id="trip-start-date" style="max-width:160px;" onchange="renderCalendar()">
+            <label style="margin-left:8px;">Jours :</label>
+            <button class="counter-btn" onclick="changeDays(-1)">−</button>
+            <span class="counter-value" id="days-count-display">3</span>
+            <button class="counter-btn" onclick="changeDays(1)">+</button>
+          </div>
+          <label class="toggle-travel">
+            <input type="checkbox" id="toggle-travel" onchange="toggleTravel(this.checked)" checked>
+            Afficher les trajets
+          </label>
+        </div>
+        <div class="calendar-wrapper">
+          <div id="calendar-grid" class="calendar-grid"></div>
+        </div>
+      </div>
+  </details>
+
+  <details class="section section-collapsible" id="flights-section">
+    <summary class="section-header">
+      <div class="icon">✈</div>
+      <h2>Vols</h2>
+      <span class="section-chevron">▾</span>
+    </summary>
+    <div class="section-body">
+      <div id="flights-list"></div>
+      <div id="no-flights" style="color:var(--muted);font-size:0.84rem;text-align:center;padding:20px 0;">Aucun vol ajouté.</div>
+    </div>
+  </details>
+
+  <details class="section section-collapsible" id="trips-section">
+    <summary class="section-header">
+      <div class="icon">🗺</div>
+      <h2>Déplacements</h2>
+      <span class="section-chevron">▾</span>
+    </summary>
+    <div class="section-body">
+      <div class="map-info" id="map-info">🗺️ Ajoutez des lieux pour voir l'itinéraire</div>
+    </div>
+  </details>
+</div>
+
+<div id="modal-overlay" class="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="modal-title">Titre</h3>
+      <button class="detail-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<aside id="detail-panel" class="detail-panel">
+  <div class="detail-panel-header">
+    <h3 id="detail-title">Détails</h3>
+    <button class="detail-close" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="detail-panel-body" id="detail-body"></div>
+</aside>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/data/airports.js"></script>
+<script src="js/data/timezones.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
