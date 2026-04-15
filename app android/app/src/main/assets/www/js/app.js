@@ -1594,7 +1594,7 @@ function getSyncConfig() {
     const raw = localStorage.getItem("voyageplanner_pantry");
     if (raw) return JSON.parse(raw);
   } catch (e) {}
-  return { pantryId: "", basket: "voyages", auto: false };
+  return { pantryId: "", basket: "voyages", auto: false, sharedIds: null };
 }
 
 function setSyncConfig(cfg) {
@@ -1617,6 +1617,18 @@ function openSync() {
       <input type="checkbox" id="sync-auto" ${cfg.auto ? "checked" : ""}>
       <span>Push automatique après chaque modification (avec délai)</span>
     </label>
+    <div style="margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong>Voyages à partager</strong>
+        <span style="font-size:11px;">
+          <a href="#" onclick="toggleAllShared(true);return false;">Tout</a> ·
+          <a href="#" onclick="toggleAllShared(false);return false;">Aucun</a>
+        </span>
+      </div>
+      <div id="sync-trip-list" style="max-height:180px;overflow:auto;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px;margin-top:4px;">
+        ${renderSyncTripList(cfg)}
+      </div>
+    </div>
     <div class="modal-actions" style="margin-top:12px;">
       <button class="btn btn-gold btn-sm" onclick="saveSyncConfig()">💾 Enregistrer</button>
       <button class="btn btn-gold btn-sm" onclick="syncPush()">⬆ Envoyer</button>
@@ -1631,11 +1643,36 @@ function openSync() {
   showModal();
 }
 
+function renderSyncTripList(cfg) {
+  if (!allTrips.length) return '<p style="font-size:12px;opacity:.7;">Aucun voyage.</p>';
+  const shared = cfg.sharedIds;
+  return allTrips.map((t) => {
+    const checked = (shared === null || shared === undefined) ? true : shared.includes(t.id);
+    return `<label style="display:flex;align-items:center;gap:8px;padding:4px;">
+      <input type="checkbox" class="sync-trip-cb" data-id="${t.id}" ${checked ? "checked" : ""}>
+      <span>${escapeHtml(t.title || "Voyage")}</span>
+    </label>`;
+  }).join("");
+}
+
+function toggleAllShared(on) {
+  document.querySelectorAll(".sync-trip-cb").forEach((cb) => { cb.checked = on; });
+}
+
+function getSelectedSharedIds() {
+  const ids = [];
+  document.querySelectorAll(".sync-trip-cb").forEach((cb) => {
+    if (cb.checked) ids.push(Number(cb.dataset.id));
+  });
+  return ids;
+}
+
 function saveSyncConfig() {
   const cfg = {
     pantryId: document.getElementById("sync-pantry-id").value.trim(),
     basket: document.getElementById("sync-basket").value.trim() || "voyages",
     auto: document.getElementById("sync-auto").checked,
+    sharedIds: getSelectedSharedIds(),
   };
   setSyncConfig(cfg);
   setSyncStatus("✓ Enregistré");
@@ -1653,8 +1690,14 @@ function readSyncInputs() {
   if (idEl) cfg.pantryId = idEl.value.trim();
   if (bEl) cfg.basket = bEl.value.trim() || "voyages";
   if (document.getElementById("sync-auto")) cfg.auto = document.getElementById("sync-auto").checked;
+  if (document.querySelector(".sync-trip-cb")) cfg.sharedIds = getSelectedSharedIds();
   setSyncConfig(cfg);
   return cfg;
+}
+
+function tripsToShare(cfg) {
+  if (!cfg.sharedIds) return allTrips;
+  return allTrips.filter((t) => cfg.sharedIds.includes(t.id));
 }
 
 async function syncPush() {
@@ -1662,14 +1705,15 @@ async function syncPush() {
   if (!cfg.pantryId) { setSyncStatus("⚠ Renseigne un Pantry ID"); return; }
   setSyncStatus("⏳ Envoi…");
   try {
-    const body = { trips: allTrips, updatedAt: Date.now() };
+    const shared = tripsToShare(cfg);
+    const body = { trips: shared, updatedAt: Date.now() };
     const r = await fetch(`${PANTRY_BASE}/${encodeURIComponent(cfg.pantryId)}/basket/${encodeURIComponent(cfg.basket)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error("HTTP " + r.status);
-    setSyncStatus("✓ Envoyé (" + allTrips.length + " voyages)");
+    setSyncStatus("✓ Envoyé (" + shared.length + " voyages)");
   } catch (e) {
     setSyncStatus("⚠ Erreur envoi : " + e.message);
   }
@@ -1719,10 +1763,11 @@ function maybeAutoSync() {
   if (!cfg.auto || !cfg.pantryId) return;
   if (autoSyncTimer) clearTimeout(autoSyncTimer);
   autoSyncTimer = setTimeout(() => {
+    const shared = tripsToShare(cfg);
     fetch(`${PANTRY_BASE}/${encodeURIComponent(cfg.pantryId)}/basket/${encodeURIComponent(cfg.basket)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ trips: allTrips, updatedAt: Date.now() }),
+      body: JSON.stringify({ trips: shared, updatedAt: Date.now() }),
     }).catch(() => {});
   }, 3000);
 }
