@@ -279,15 +279,6 @@ body.hide-travel .cal-evt-travel {
   display: none !important;
 }
 
-body.hide-activities .cal-evt-act,
-body.hide-activities .cal-evt-travel {
-  display: none !important;
-}
-
-body.hide-nights .cal-evt-night {
-  display: none !important;
-}
-
 .cal-evt-travel {
   background: var(--navy);
   border-left: 3px solid var(--gold);
