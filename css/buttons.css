@@ -1,0 +1,73 @@
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.btn-gold {
+  background: var(--gold);
+  color: var(--navy);
+}
+
+.btn-gold:hover {
+  background: var(--gold-light);
+}
+
+.btn-sm {
+  padding: 5px 11px;
+  font-size: 0.73rem;
+  border-radius: 6px;
+  line-height: 1.2;
+  border: 1.5px solid transparent;
+}
+
+.trip-selector .btn-sm {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.trip-selector select {
+  height: 30px;
+}
+
+.btn-danger {
+  background: #fce8e6;
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: #f5b7b1;
+}
+
+.theme-select {
+  background: rgba(255,255,255,0.1);
+  border: 1.5px solid var(--gold);
+  color: var(--cream);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.73rem;
+  padding: 5px 8px;
+  border-radius: 6px;
+  outline: none;
+  height: 30px;
+  cursor: pointer;
+}
+.theme-select option {
+  background: var(--navy);
+  color: var(--cream);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--cream);
+  border: 1.5px solid rgba(201, 168, 76, 0.5);
+}
+.btn-ghost:hover {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: var(--gold);
+}

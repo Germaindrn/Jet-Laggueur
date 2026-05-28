@@ -1,0 +1,84 @@
+/* Pill-shaped map markers, polyline route info, geocoding feedback states. */
+
+.route-segment {
+  background: rgba(201, 168, 76, 0.12);
+  border-left: 3px solid var(--gold);
+  padding: 6px 10px;
+  margin: 5px 0;
+  border-radius: 0 6px 6px 0;
+  font-size: 0.76rem;
+  color: var(--navy);
+}
+
+.route-segment strong {
+  color: var(--gold);
+}
+
+.geocode-status {
+  font-size: 0.68rem;
+  margin-top: 2px;
+  height: 13px;
+}
+
+.geocode-ok {
+  color: var(--success);
+}
+
+.geocode-err {
+  color: var(--danger);
+}
+
+.geocode-loading {
+  color: var(--muted);
+}
+
+/* ==================== MAP MARKERS ==================== */
+
+.map-pill-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.map-pill {
+  transition: opacity 0.25s, transform 0.25s, box-shadow 0.25s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px 4px 6px;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  white-space: nowrap;
+  font-family: "DM Sans", sans-serif;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: translate(-8px, -8px);
+}
+
+.map-pill.dimmed {
+  opacity: 0.25;
+  transform: translate(-8px, -8px) scale(0.85);
+}
+
+.map-pill.highlighted {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35), 0 0 0 3px var(--gold);
+  transform: translate(-8px, -8px) scale(1.1);
+  z-index: 10;
+}
+
+.map-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.map-pill-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

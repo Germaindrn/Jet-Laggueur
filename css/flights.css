@@ -1,0 +1,152 @@
+/* Flight cards (arrival / departure) and IATA airport autocomplete dropdown. */
+
+.flight-card {
+  background: var(--cream);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1.5px solid var(--sand);
+  position: relative;
+}
+
+.flight-card .card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.flight-badge {
+  background: var(--navy);
+  color: var(--gold);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.flight-arrow {
+  flex: 1;
+  text-align: center;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.remove-btn:hover {
+  color: var(--danger);
+  background: #fce8e6;
+}
+
+/* ==================== AIRPORT PICKER ==================== */
+
+.airport-picker {
+  position: relative;
+}
+
+.airport-picker input[type="text"] {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.airport-picker input[type="text"]::placeholder {
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.ap-resolved {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 3px;
+  min-height: 15px;
+  padding: 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ap-resolved.ok {
+  color: var(--success);
+  font-weight: 500;
+}
+
+.ap-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border: 1.5px solid var(--gold);
+  border-radius: 8px;
+  z-index: 500;
+  box-shadow: 0 8px 24px rgba(26, 39, 68, 0.18);
+  max-height: 220px;
+  overflow-y: auto;
+  display: none;
+}
+
+.ap-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--sand);
+  transition: background 0.12s;
+}
+
+.ap-option:last-child {
+  border-bottom: none;
+}
+
+.ap-option:hover,
+.ap-option:focus {
+  background: #fffbf0;
+}
+
+.ap-code {
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: var(--navy);
+  min-width: 36px;
+  letter-spacing: 0.05em;
+}
+
+.ap-info {
+  flex: 1;
+}
+
+.ap-city-name {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ap-full-name {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.ap-ctry {
+  font-size: 0.66rem;
+  color: var(--muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}

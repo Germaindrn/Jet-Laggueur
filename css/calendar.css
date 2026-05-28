@@ -1,0 +1,500 @@
+/* Calendar meta bar, scrollable day-column grid, events (flights/activities/nights/travels),
+   activity drag & resize, color palette, and full-height detail panel. */
+
+.calendar-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--cream);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.meta-info {
+  font-size: 0.8rem;
+  color: var(--navy-light);
+  font-weight: 500;
+  background: rgba(201, 168, 76, 0.15);
+  border-radius: 6px;
+  padding: 4px 10px;
+  border-left: 3px solid var(--gold);
+}
+
+/* ==================== ZOOM CONTROLS ==================== */
+
+.cal-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--white);
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+}
+
+.cal-zoom-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--navy);
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cal-zoom-btn:hover {
+  background: var(--navy);
+  color: var(--cream);
+}
+
+.cal-zoom-axis {
+  font-size: 0.95rem;
+  color: var(--navy-light);
+  padding: 0 2px 0 0;
+  user-select: none;
+}
+
+.cal-zoom-fit {
+  font-size: 0.9rem;
+}
+
+.cal-zoom-range {
+  width: 110px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.toggle-travel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--navy-light);
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.toggle-travel input {
+  accent-color: var(--gold);
+}
+
+/* ==================== CALENDAR GRID ==================== */
+
+.calendar-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 40px;
+}
+
+.calendar-grid {
+  display: flex;
+  min-width: max-content;
+  --cal-day-w: 220px;
+}
+
+/* Hours column */
+.cal-hours {
+  width: 50px;
+  min-width: 50px;
+  position: sticky;
+  left: 0;
+  flex-shrink: 0;
+  margin-top: 62px; /* align with day body */
+  background: var(--white);
+  z-index: 6;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.06);
+}
+
+.cal-hour-label {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: right;
+  padding-right: 8px;
+  transform: translateY(-8px);
+  font-weight: 500;
+}
+
+/* Day column */
+.cal-day {
+  width: var(--cal-day-w, 220px);
+  min-width: var(--cal-day-w, 220px);
+  border-left: 1px solid var(--sand);
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+}
+
+.cal-day:last-child {
+  border-right: 1px solid var(--sand);
+}
+
+.cal-day-head {
+  background: linear-gradient(135deg, var(--navy), var(--navy-light));
+  padding: 10px 12px;
+  text-align: center;
+  flex-shrink: 0;
+  height: 62px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: filter 0.15s, box-shadow 0.15s;
+}
+
+.cal-day-head:hover {
+  filter: brightness(1.15);
+}
+
+.cal-day.day-focused .cal-day-head {
+  box-shadow: inset 0 -3px 0 var(--gold);
+  filter: brightness(1.15);
+}
+
+.cal-day-num {
+  background: var(--gold);
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: inline-block;
+  margin-bottom: 3px;
+}
+
+.cal-day-wd {
+  color: var(--gold-light);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cal-day-ds {
+  color: var(--cream);
+  font-size: 0.72rem;
+}
+
+.cal-day-body {
+  position: relative;
+  width: 100%;
+}
+
+/* Hour grid lines */
+.cal-hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--sand);
+  opacity: 0.5;
+}
+
+/* ==================== EVENTS ==================== */
+
+.cal-evt {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border-radius: 6px;
+  padding: 5px 7px;
+  z-index: 2;
+  font-size: 0.72rem;
+}
+
+.cal-evt-flight {
+  background: var(--navy);
+  color: var(--cream);
+  min-height: 44px;
+}
+
+.cal-evt-flight .evt-time {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.cal-evt-flight .evt-title {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.cal-evt-flight .evt-sub {
+  font-size: 0.66rem;
+  color: var(--gold-light);
+  opacity: 0.8;
+}
+
+.cal-evt-act {
+  background: color-mix(in srgb, var(--act-color, var(--gold)) 18%, transparent);
+  border-left: 3px solid var(--act-color, var(--gold));
+  min-height: 24px;
+  cursor: grab;
+  transition: background 0.15s, box-shadow 0.15s;
+  touch-action: none;
+  user-select: none;
+}
+
+.cal-evt-act.dragging {
+  opacity: 0.85;
+  z-index: 100;
+  box-shadow: 0 6px 20px rgba(26, 39, 68, 0.25);
+  cursor: grabbing;
+}
+
+.cal-evt-act.resizing {
+  box-shadow: 0 0 0 2px var(--gold);
+}
+
+.cal-evt-act:hover {
+  background: color-mix(in srgb, var(--act-color, var(--gold)) 32%, transparent);
+}
+
+.cal-evt.selected {
+  box-shadow: 0 0 0 2px var(--gold);
+  z-index: 5;
+}
+
+.evt-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+body.hide-travel .cal-evt-travel {
+  display: none !important;
+}
+
+body.hide-activities .cal-evt-act,
+body.hide-activities .cal-evt-travel {
+  display: none !important;
+}
+
+body.hide-nights .cal-evt-night {
+  display: none !important;
+}
+
+.cal-evt-travel {
+  background: var(--gold) !important;
+  border-left: 3px solid var(--navy);
+  color: var(--navy) !important;
+  cursor: default;
+  pointer-events: none;
+  padding: 2px 8px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.cal-evt-travel .evt-compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.cal-evt-travel .travel-text,
+.cal-evt-travel .evt-compact-name {
+  color: var(--navy) !important;
+  font-weight: 700 !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.02em;
+}
+
+.cal-evt-travel .travel-text::before {
+  content: "🚗  ";
+}
+
+.cal-evt-travel .travel-text:empty::before {
+  content: "";
+}
+
+.evt-compact-time {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.evt-compact-name {
+  font-size: 0.78rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-evt-night {
+  background: color-mix(in srgb, var(--navy-light) 14%, transparent);
+  border-left: 3px solid var(--navy-light);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.cal-evt-night:hover {
+  background: color-mix(in srgb, var(--navy-light) 22%, transparent) !important;
+}
+
+.cal-evt-night .evt-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--navy);
+  margin-bottom: 3px;
+}
+
+/* Drag / resize handles + inline form bits */
+
+.evt-drag-handle {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--muted);
+  cursor: grab;
+  user-select: none;
+  line-height: 12px;
+  letter-spacing: 2px;
+  touch-action: none;
+}
+
+.evt-drag-handle:hover {
+  color: var(--gold);
+}
+
+.evt-resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 3;
+}
+
+.evt-resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 28px;
+  height: 2px;
+  background: var(--gold);
+  opacity: 0;
+  border-radius: 2px;
+  transform: translateX(-50%);
+  transition: opacity 0.15s;
+}
+
+.cal-evt-act:hover .evt-resize-handle::after {
+  opacity: 0.6;
+}
+
+.evt-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+}
+
+.evt-time-input {
+  width: 70px;
+  font-size: 0.7rem !important;
+  padding: 2px 4px !important;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.evt-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.evt-remove:hover {
+  color: var(--danger);
+  background: #fce8e6;
+}
+
+.evt-name-input {
+  width: 100%;
+  font-size: 0.76rem !important;
+  font-weight: 600;
+  padding: 2px 4px !important;
+  margin-bottom: 2px;
+}
+
+.evt-place-input {
+  width: 100%;
+  font-size: 0.68rem !important;
+  padding: 2px 4px !important;
+  color: var(--muted);
+}
+
+.evt-desc-input {
+  width: 100%;
+  font-size: 0.66rem !important;
+  padding: 2px 4px !important;
+  color: var(--muted);
+  border-style: dashed !important;
+  margin-top: 2px;
+}
+
+.cal-add-btn-wrap {
+  position: absolute;
+  bottom: -32px;
+  left: 4px;
+  right: 4px;
+}
+
+.cal-add-act {
+  background: transparent;
+  border: 1.5px dashed var(--sand);
+  color: var(--muted);
+  width: 100%;
+  padding: 5px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.7rem;
+  transition: all 0.18s;
+}
+
+.cal-add-act:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: #fffbf0;
+}
+
+.calendar-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.calendar-empty .empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}

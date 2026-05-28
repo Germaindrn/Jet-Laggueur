@@ -1,0 +1,161 @@
+/* Map panel (full-viewport background) + main-content "island" overlay + collapsible sections. */
+
+.map-panel {
+  background: var(--navy);
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+}
+
+#map {
+  height: 100%;
+  width: 100%;
+}
+
+.map-info-wrap > summary {
+  background: var(--navy-light);
+  color: var(--gold-light);
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.map-info-wrap > summary::-webkit-details-marker { display: none; }
+.map-info-wrap > summary::before {
+  content: "▸ ";
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.map-info-wrap[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.map-info {
+  background: var(--navy);
+  padding: 10px 14px;
+  font-size: 0.76rem;
+  color: var(--gold-light);
+  overflow-x: auto;
+}
+
+.map-info strong {
+  color: var(--gold);
+}
+
+.main-content {
+  position: relative;
+  z-index: 10;
+  max-width: 1200px;
+  margin: 60vh auto 0;
+  padding: 32px 24px 80px;
+  background: var(--cream);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 32px rgba(26, 39, 68, 0.18);
+  min-height: 100vh;
+  transition: transform 0.3s ease, margin-left 0.25s ease, max-width 0.25s ease;
+}
+
+.island-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 11;
+}
+
+.island-grip {
+  display: block;
+  width: 44px;
+  height: 4px;
+  background: var(--sand);
+  border-radius: 2px;
+  transition: background 0.15s, width 0.15s;
+}
+
+.island-handle:hover .island-grip {
+  background: var(--gold);
+  width: 60px;
+}
+
+body.island-collapsed .main-content {
+  transform: translateY(calc(100vh - 60vh - 44px));
+}
+
+body.island-collapsed .island-grip {
+  background: var(--gold);
+}
+
+body.detail-open .main-content {
+  margin-left: 368px;
+  margin-right: 14px;
+  max-width: none;
+}
+
+/* ==================== SECTIONS ==================== */
+
+.section {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.section-header {
+  background: var(--navy);
+  padding: 14px 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-collapsible > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.section-collapsible > summary::-webkit-details-marker { display: none; }
+.section-collapsible .section-chevron {
+  color: var(--cream);
+  transition: transform 0.2s;
+  font-size: 1rem;
+}
+.section-collapsible[open] .section-chevron {
+  transform: rotate(180deg);
+}
+
+.section-header h2 {
+  font-family: "Playfair Display", serif;
+  font-size: 1.05rem;
+  color: var(--cream);
+  font-weight: 400;
+  flex: 1;
+}
+
+.section-header .icon {
+  width: 26px;
+  height: 26px;
+  background: var(--gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.section-body {
+  padding: 18px 22px;
+}

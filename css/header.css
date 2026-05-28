@@ -1,0 +1,125 @@
+.app-header {
+  background: var(--navy);
+  padding: 22px 32px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+}
+
+.leaflet-top, .leaflet-bottom {
+  z-index: 400 !important;
+}
+
+body {
+  padding-top: 0;
+}
+
+.app-header .logo {
+  font-family: "Playfair Display", serif;
+  font-size: 1.5rem;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-header .logo-icon {
+  height: 44px !important;
+  width: 44px !important;
+  max-height: 44px;
+  max-width: 44px;
+  min-width: 0;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.app-header .logo span {
+  color: var(--cream);
+  font-style: italic;
+}
+
+.trip-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trip-selector select {
+  background: rgba(255,255,255,0.1);
+  border: 1.5px solid var(--gold);
+  color: var(--cream);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.78rem;
+  padding: 5px 8px;
+  border-radius: 6px;
+  outline: none;
+  max-width: 180px;
+}
+
+.trip-selector select option {
+  background: var(--navy);
+  color: var(--cream);
+}
+
+#trip-title-input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--gold);
+  color: var(--cream);
+  font-family: "Playfair Display", serif;
+  font-size: 1.1rem;
+  padding: 4px 8px;
+  width: 240px;
+  outline: none;
+}
+
+#trip-title-input::placeholder {
+  color: rgba(245, 240, 232, 0.4);
+}
+
+/* ==================== NAVIGATION ==================== */
+
+.nav-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.nav-tab {
+  background: transparent;
+  border: 1.5px solid rgba(201, 168, 76, 0.4);
+  color: var(--gold-light);
+  padding: 7px 16px;
+  border-radius: 30px;
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+
+.nav-tab:hover,
+.nav-tab.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--navy);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}

@@ -1,0 +1,12 @@
+@media (max-width: 900px) {
+
+  .app-header {
+    flex-wrap: wrap;
+    padding: 14px 18px;
+  }
+
+  .main-content {
+    padding: 18px 14px;
+  }
+
+}
