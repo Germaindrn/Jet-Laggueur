@@ -67,11 +67,13 @@ async function updateMap() {
     });
   }
 
-  // Collect all day points for routing
+  // Routes always trace through every saved waypoint (activities + nights).
+  // Visibility toggles only affect markers, not the itinerary itself.
   const routePts = [];
   const destLL = getDestAirportLatLng();
   const showActivities = getShowActivities();
   const showNights = getShowNights();
+  const showTravel = getShowTravel();
 
   state.days.forEach((day, i) => {
     const isFirstDay = i === 0;
@@ -82,33 +84,34 @@ async function updateMap() {
       routePts.push({ latlng: destLL, label: destCode || "✈" });
     }
 
-    // Activities
-    if (showActivities) {
-      day.activities.forEach((act, j) => {
-        if (act.latLng) {
-          const label = act.name || act.place || `J${i + 1} activité ${String.fromCharCode(65 + j)}`;
-          pts.push({
-            latlng: act.latLng,
-            label,
-            color: act.color || colGold,
-            dayIdx: i,
-            popup: `<b>${act.time || ""}</b> ${escapeHtml(act.name || "")}${act.description ? "<br><small>" + escapeHtml(act.description) + "</small>" : ""}`,
-          });
-          routePts.push({ latlng: act.latLng, label, dayIdx: i });
-        }
-      });
-    }
+    // Activities — markers gated by toggle, route always traces through them
+    day.activities.forEach((act, j) => {
+      if (!act.latLng) return;
+      const label = act.name || act.place || `J${i + 1} activité ${String.fromCharCode(65 + j)}`;
+      if (showActivities) {
+        pts.push({
+          latlng: act.latLng,
+          label,
+          color: act.color || colGold,
+          dayIdx: i,
+          popup: `<b>${act.time || ""}</b> ${escapeHtml(act.name || "")}${act.description ? "<br><small>" + escapeHtml(act.description) + "</small>" : ""}`,
+        });
+      }
+      routePts.push({ latlng: act.latLng, label, dayIdx: i });
+    });
 
-    // Night location (not on last day)
-    if (showNights && day.nightLatLng && !isLastDay) {
+    // Night location (not on last day) — same logic: marker gated, route always
+    if (day.nightLatLng && !isLastDay) {
       const label = "Nuit";
-      pts.push({
-        latlng: day.nightLatLng,
-        label,
-        color: colNavyLight,
-        dayIdx: i,
-        popup: `🌙 Nuit ${i + 1}: ${escapeHtml(day.nightLocation || "")}${day.nightDescription ? "<br><small>" + escapeHtml(day.nightDescription) + "</small>" : ""}`,
-      });
+      if (showNights) {
+        pts.push({
+          latlng: day.nightLatLng,
+          label,
+          color: colNavyLight,
+          dayIdx: i,
+          popup: `🌙 Nuit ${i + 1}: ${escapeHtml(day.nightLocation || "")}${day.nightDescription ? "<br><small>" + escapeHtml(day.nightDescription) + "</small>" : ""}`,
+        });
+      }
       routePts.push({ latlng: day.nightLatLng, label, dayIdx: i });
     }
 
@@ -118,7 +121,11 @@ async function updateMap() {
     }
   });
 
-  if (pts.length === 0) return;
+  if (pts.length === 0 && (!showTravel || routePts.length < 2)) {
+    const info = document.getElementById("map-info");
+    if (info) info.innerHTML = "🗺️ Ajoutez des lieux pour voir l'itinéraire";
+    return;
+  }
 
   pts.forEach((p) => {
     const m = L.marker(p.latlng, { icon: makeIcon(p.color, p.label, p.dayIdx, p.isAirport) })
@@ -129,7 +136,14 @@ async function updateMap() {
     mapMarkers.push(m);
   });
 
-  if (routePts.length > 1) await drawRoutes(routePts);
+  if (showTravel && routePts.length > 1) {
+    await drawRoutes(routePts);
+  } else {
+    const info = document.getElementById("map-info");
+    if (info) info.innerHTML = showTravel
+      ? "🗺️ Ajoutez des lieux pour voir l'itinéraire"
+      : "Trajets masqués.";
+  }
 
   map.invalidateSize();
   applyDayHighlight();

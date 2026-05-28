@@ -7,6 +7,7 @@ function getShowTravel() {
 function toggleTravel(show) {
   try { localStorage.setItem("voyageplanner_showtravel", show ? "1" : "0"); } catch (e) {}
   document.body.classList.toggle("hide-travel", !show);
+  if (typeof updateMap === "function") updateMap();
 }
 
 function getShowActivities() {
