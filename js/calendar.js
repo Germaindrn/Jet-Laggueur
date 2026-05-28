@@ -121,18 +121,22 @@ function renderCalendar() {
     }
 
     // Activities
+    const visitorCal = typeof isVisitorMode === "function" && isVisitorMode();
     day.activities.forEach((act, j) => {
       const top = timeToPos(act.time, START_HOUR, HOUR_PX);
       const dur = Number(act.durationMin) || 60;
       const heightPx = Math.max(28, (dur / 60) * HOUR_PX);
       const sel = currentDetail && currentDetail.type === "act" && currentDetail.day === i && currentDetail.id === act.id ? " selected" : "";
       const colorStyle = act.color ? `--act-color:${act.color};` : "";
+      const evtLabel = visitorCal
+        ? escapeHtml(act.shareName || `Activité ${String.fromCharCode(65 + j)}`)
+        : escapeHtml(act.name || "Sans titre");
       events += `<div class="cal-evt cal-evt-travel" id="travel-act-${act.id}" data-activity-top="${top}" style="top:${top}px;height:0;display:none">
         <div class="evt-compact"><span class="evt-compact-name travel-text"></span></div>
       </div>`;
       events += `<div class="cal-evt cal-evt-act${sel}" style="${colorStyle}top:${top}px;height:${heightPx}px" id="evt-${i}-${act.id}" data-day="${i}" data-id="${act.id}">
         <div class="evt-compact">
-          <span class="evt-compact-name">${escapeHtml(act.name || "Sans titre")}</span>
+          <span class="evt-compact-name">${evtLabel}</span>
         </div>
         <div class="evt-resize-handle" title="Étirer pour changer la durée"></div>
       </div>`;
@@ -191,6 +195,14 @@ function renderCalendar() {
 function initActivityDragDrop(START_HOUR, HOUR_PX) {
   const grid = document.getElementById("calendar-grid");
   if (!grid) return;
+  if (typeof isVisitorMode === "function" && isVisitorMode()) {
+    grid.querySelectorAll(".cal-evt-act").forEach((evt) => {
+      evt.addEventListener("click", (e) => {
+        openActivityDetail(Number(evt.dataset.day), Number(evt.dataset.id), e);
+      });
+    });
+    return;
+  }
   const SNAP_MIN = 15;
   const DRAG_THRESHOLD = 5;
   let drag = null;
@@ -384,6 +396,27 @@ function openActivityDetail(dayIdx, actId, ev) {
   const body = document.getElementById("detail-body");
   const title = document.getElementById("detail-title");
   title.textContent = `Jour ${dayIdx + 1} · Activité`;
+  if (typeof isVisitorMode === "function" && isVisitorMode()) {
+    const dur = Number(act.durationMin) || 60;
+    const durTxt = dur >= 60
+      ? `${Math.floor(dur / 60)}h${dur % 60 ? String(dur % 60).padStart(2, "0") : ""}`
+      : `${dur} min`;
+    if (act.shareName) title.textContent = `Jour ${dayIdx + 1} · ${act.shareName}`;
+    body.innerHTML = `
+      <div class="detail-meta">
+        ${act.time ? `<div class="detail-meta-time">🕒 ${escapeHtml(act.time)} · ${durTxt}</div>` : ""}
+      </div>
+      <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
+      <div class="detail-share-desc">
+        ${act.shareDescription
+          ? escapeHtml(act.shareDescription).replace(/\n/g, "<br>")
+          : '<span class="detail-empty">Aucune description partagée.</span>'}
+      </div>
+    `;
+    setTimeout(() => initDetailMap(act.latLng), 50);
+    showDetailPanel();
+    return;
+  }
   const swatches = ACTIVITY_COLORS.map((c) => {
     const selected = (act.color || "") === c.value ? " selected" : "";
     const isDefault = c.value === "";
@@ -406,8 +439,14 @@ function openActivityDetail(dayIdx, actId, ev) {
       <div class="geocode-status" id="dp-geo">${act.latLng ? '<span class="geocode-ok">✓ Localisé</span>' : ""}</div>
     </label>
     <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
-    <label class="detail-label">Notes
+    <label class="detail-label">Notes privées
       <textarea id="dp-desc" placeholder="Notes, lien…">${escapeHtml(act.description || "")}</textarea>
+    </label>
+    <label class="detail-label">Nom partagé <span class="detail-hint">(visible en mode visiteur)</span>
+      <input type="text" id="dp-share-name" placeholder="Indice, surprise…" value="${escapeAttr(act.shareName || "")}">
+    </label>
+    <label class="detail-label">Description partagée <span class="detail-hint">(visible en mode visiteur)</span>
+      <textarea id="dp-share-desc" placeholder="Indice, énigme, ambiance…">${escapeHtml(act.shareDescription || "")}</textarea>
     </label>
     <div class="detail-actions">
       <button class="btn btn-danger btn-sm" onclick="removeCalAct(${dayIdx},${actId});closeDetail()">Supprimer</button>
@@ -448,6 +487,12 @@ function openActivityDetail(dayIdx, actId, ev) {
   });
   document.getElementById("dp-desc").addEventListener("input", (e) => {
     updateActivity(dayIdx, actId, "description", e.target.value);
+  });
+  document.getElementById("dp-share-name").addEventListener("input", (e) => {
+    updateActivity(dayIdx, actId, "shareName", e.target.value);
+  });
+  document.getElementById("dp-share-desc").addEventListener("input", (e) => {
+    updateActivity(dayIdx, actId, "shareDescription", e.target.value);
   });
   setTimeout(() => initDetailMap(act.latLng), 50);
   showDetailPanel();
@@ -493,14 +538,30 @@ function openNightDetail(dayIdx, ev) {
   const body = document.getElementById("detail-body");
   const title = document.getElementById("detail-title");
   title.textContent = `Jour ${dayIdx + 1} · Hébergement`;
+  if (typeof isVisitorMode === "function" && isVisitorMode()) {
+    body.innerHTML = `
+      <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
+      <div class="detail-share-desc">
+        ${day.nightShareDescription
+          ? escapeHtml(day.nightShareDescription).replace(/\n/g, "<br>")
+          : '<span class="detail-empty">Aucune description partagée.</span>'}
+      </div>
+    `;
+    setTimeout(() => initDetailMap(day.nightLatLng), 50);
+    showDetailPanel();
+    return;
+  }
   body.innerHTML = `
     <label class="detail-label">Hôtel, Airbnb…
       <input type="text" id="dp-night-place" value="${escapeAttr(day.nightLocation || "")}">
       <div class="geocode-status" id="dp-night-geo">${day.nightLatLng ? '<span class="geocode-ok">✓ Localisé</span>' : ""}</div>
     </label>
     <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
-    <label class="detail-label">Notes / lien booking
+    <label class="detail-label">Notes privées / lien booking
       <textarea id="dp-night-desc">${escapeHtml(day.nightDescription || "")}</textarea>
+    </label>
+    <label class="detail-label">Description partagée <span class="detail-hint">(visible en mode visiteur)</span>
+      <textarea id="dp-night-share-desc" placeholder="Indice, ambiance…">${escapeHtml(day.nightShareDescription || "")}</textarea>
     </label>
   `;
   setTimeout(() => initDetailMap(day.nightLatLng), 50);
@@ -517,6 +578,9 @@ function openNightDetail(dayIdx, ev) {
   });
   document.getElementById("dp-night-desc").addEventListener("input", (e) => {
     updateDayField(dayIdx, "nightDescription", e.target.value);
+  });
+  document.getElementById("dp-night-share-desc").addEventListener("input", (e) => {
+    updateDayField(dayIdx, "nightShareDescription", e.target.value);
   });
   showDetailPanel();
 }
@@ -562,6 +626,7 @@ document.addEventListener("pointerdown", (e) => {
 });
 
 document.addEventListener("keydown", (e) => {
+  if (typeof isVisitorMode === "function" && isVisitorMode()) return;
   const inField = e.target.matches("input, textarea, select, [contenteditable]");
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
     e.preventDefault();
@@ -586,6 +651,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 function initCalendarClickToCreate(START_HOUR, HOUR_PX) {
+  if (typeof isVisitorMode === "function" && isVisitorMode()) return;
   const SNAP_MIN = 15;
   document.querySelectorAll(".cal-day-body").forEach((body, dayIdx) => {
     body.addEventListener("click", (e) => {
@@ -630,6 +696,7 @@ function travelKey(from, to) {
 }
 
 async function fillTravelTimes(trip) {
+  if (typeof isVisitorMode === "function" && isVisitorMode()) return;
   const myToken = ++fillTravelToken;
   const destLL = getDestAirportLatLng();
   const HOUR_PX = getCalVZoom();

@@ -29,6 +29,7 @@
     <button class="btn btn-gold btn-sm" onclick="createTrip()">Nouveau</button>
     <button class="btn btn-danger btn-sm" onclick="deleteTrip()">Suppr.</button>
     <button class="btn btn-ghost btn-sm" onclick="openExport()">↗ Export</button>
+    <button class="btn btn-ghost btn-sm" onclick="openVisitorShare()" title="Partager une version visiteur (lieux floutés)">👥 Partager</button>
     <button class="btn btn-ghost btn-sm" onclick="openImport()">↙ Import</button>
     <button class="btn btn-ghost btn-sm" onclick="openSync()" title="Synchroniser via Pantry">☁ Sync</button>
     <select id="theme-select" class="theme-select" onchange="setTheme(this.value)" title="Thème"></select>
@@ -137,6 +138,7 @@
 <script src="js/calendar.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/sync.js"></script>
+<script src="js/visitor.js"></script>
 <script src="js/init.js"></script>
 </body>
 </html>

@@ -85,16 +85,22 @@ async function updateMap() {
     }
 
     // Activities — markers gated by toggle, route always traces through them
+    const visitor = typeof isVisitorMode === "function" && isVisitorMode();
     day.activities.forEach((act, j) => {
       if (!act.latLng) return;
-      const label = act.name || act.place || `J${i + 1} activité ${String.fromCharCode(65 + j)}`;
+      const label = visitor
+        ? (act.shareName || `J${i + 1} · ${String.fromCharCode(65 + j)}`)
+        : (act.name || act.place || `J${i + 1} activité ${String.fromCharCode(65 + j)}`);
       if (showActivities) {
+        const popupText = visitor
+          ? `<b>${act.time || ""}</b> ${escapeHtml(act.shareName || "")}${act.shareDescription ? "<br><small>" + escapeHtml(act.shareDescription) + "</small>" : ""}`
+          : `<b>${act.time || ""}</b> ${escapeHtml(act.name || "")}${act.description ? "<br><small>" + escapeHtml(act.description) + "</small>" : ""}`;
         pts.push({
           latlng: act.latLng,
           label,
           color: act.color || colGold,
           dayIdx: i,
-          popup: `<b>${act.time || ""}</b> ${escapeHtml(act.name || "")}${act.description ? "<br><small>" + escapeHtml(act.description) + "</small>" : ""}`,
+          popup: popupText,
         });
       }
       routePts.push({ latlng: act.latLng, label, dayIdx: i });
@@ -104,12 +110,15 @@ async function updateMap() {
     if (day.nightLatLng && !isLastDay) {
       const label = "Nuit";
       if (showNights) {
+        const nightPopup = visitor
+          ? `🌙 Nuit ${i + 1}${day.nightShareDescription ? "<br><small>" + escapeHtml(day.nightShareDescription) + "</small>" : ""}`
+          : `🌙 Nuit ${i + 1}: ${escapeHtml(day.nightLocation || "")}${day.nightDescription ? "<br><small>" + escapeHtml(day.nightDescription) + "</small>" : ""}`;
         pts.push({
           latlng: day.nightLatLng,
           label,
           color: colNavyLight,
           dayIdx: i,
-          popup: `🌙 Nuit ${i + 1}: ${escapeHtml(day.nightLocation || "")}${day.nightDescription ? "<br><small>" + escapeHtml(day.nightDescription) + "</small>" : ""}`,
+          popup: nightPopup,
         });
       }
       routePts.push({ latlng: day.nightLatLng, label, dayIdx: i });
@@ -286,7 +295,29 @@ function drawCachedSegment(from, to, cached) {
   return `<b>${from.label} → ${to.label}</b>: ${cached.km} km — ${cached.h > 0 ? cached.h + "h " : ""}${cached.m}min`;
 }
 
+function drawStraightRoutes(pts) {
+  const routeColor = getComputedStyle(document.documentElement).getPropertyValue("--gold").trim() || "#c9a84c";
+  const info = document.getElementById("map-info");
+  for (let i = 0; i < pts.length - 1; i++) {
+    const from = pts[i];
+    const to = pts[i + 1];
+    const poly = L.polyline([from.latlng, to.latlng], {
+      color: routeColor,
+      weight: 3,
+      opacity: 0.8,
+      dashArray: "6,4",
+    }).addTo(map);
+    poly._dayIdx = to.dayIdx != null ? to.dayIdx : from.dayIdx;
+    routePolylines.push(poly);
+  }
+  if (info) info.innerHTML = "🗺️ Itinéraire (mode visiteur)";
+  applyDayHighlight();
+}
+
 async function drawRoutes(pts) {
+  if (typeof isVisitorMode === "function" && isVisitorMode()) {
+    return drawStraightRoutes(pts);
+  }
   const infos = [];
   // First pass: draw cached segments instantly
   const segments = [];

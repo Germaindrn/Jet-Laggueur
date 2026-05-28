@@ -65,6 +65,38 @@
   margin-bottom: 14px;
 }
 
+.detail-hint {
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.detail-meta {
+  margin-bottom: 14px;
+  font-size: 0.85rem;
+  color: var(--navy);
+}
+
+.detail-meta-time {
+  font-weight: 500;
+}
+
+.detail-share-desc {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text);
+  padding: 12px 14px;
+  background: var(--cream);
+  border-left: 3px solid var(--gold);
+  border-radius: 4px;
+}
+
+.detail-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
 .detail-label input,
 .detail-label textarea {
   display: block;

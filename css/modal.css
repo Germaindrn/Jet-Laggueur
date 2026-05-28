@@ -75,3 +75,96 @@
   color: var(--success);
   min-height: 18px;
 }
+
+#visitor-url {
+  min-height: 90px;
+  word-break: break-all;
+}
+
+.visitor-qr-wrap {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.visitor-qr {
+  width: 220px;
+  height: 220px;
+  background: var(--white);
+  border: 1px solid var(--sand);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.visitor-qr svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.visitor-qr.disabled {
+  background: repeating-linear-gradient(45deg, var(--cream), var(--cream) 6px, var(--sand) 6px, var(--sand) 12px);
+  color: var(--navy);
+  font-weight: 600;
+  text-align: center;
+  padding: 16px;
+}
+
+.visitor-qr-caption {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+body.visitor-mode .trip-selector > select,
+body.visitor-mode .trip-selector > button,
+body.visitor-mode #trip-title-input,
+body.visitor-mode .detail-actions,
+body.visitor-mode .cal-add-btn-wrap {
+  display: none !important;
+}
+
+body.visitor-mode .cal-evt-act,
+body.visitor-mode .cal-evt-night {
+  cursor: pointer;
+}
+
+body.visitor-mode .cal-evt-act .evt-resize-handle {
+  display: none !important;
+}
+
+body.visitor-mode #flights-list input,
+body.visitor-mode #flights-list select {
+  pointer-events: none;
+  background: var(--cream);
+  color: var(--navy);
+  opacity: 0.9;
+}
+
+body.visitor-mode .ap-dropdown {
+  display: none !important;
+}
+
+body.visitor-mode .logo::after {
+  content: " · Visiteur";
+  font-size: 0.7em;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.visitor-banner {
+  background: var(--gold);
+  color: var(--navy);
+  padding: 6px 14px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-bottom: 1px solid var(--navy);
+}
