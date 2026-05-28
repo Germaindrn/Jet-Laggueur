@@ -20,8 +20,23 @@ document.getElementById("trip-title-input").addEventListener("input", (e) => {
   state.title = e.target.value;
   document.title = e.target.value + " — Jet Laggueur";
   saveState();
-  renderTripSelector();
 });
 
 ensureFlights();
-restoreUI();
+
+if (isVisitorMode()) {
+  setView("trip");
+  restoreUI();
+} else {
+  let savedView = "home";
+  try { savedView = localStorage.getItem("voyageplanner_view") || "home"; } catch (e) {}
+  if (savedView === "trip") {
+    setView("trip");
+    restoreUI();
+  } else {
+    setView("home");
+    renderHome();
+    initThemes();
+  }
+  if (typeof syncCheckRemote === "function") syncCheckRemote();
+}

@@ -123,9 +123,8 @@
   text-align: center;
 }
 
-body.visitor-mode .trip-selector > select,
-body.visitor-mode .trip-selector > button,
 body.visitor-mode #trip-title-input,
+body.visitor-mode .header-trip-only,
 body.visitor-mode .detail-actions,
 body.visitor-mode .cal-add-btn-wrap {
   display: none !important;

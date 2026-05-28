@@ -73,7 +73,6 @@ function saveAll() {
     localStorage.setItem("voyageplanner_trips", JSON.stringify(allTrips));
     localStorage.setItem("voyageplanner_current", String(currentTripId));
   } catch (e) {}
-  maybeAutoSync();
 }
 
 const history = [];
@@ -110,11 +109,54 @@ function undo() {
   } catch (e) {}
 }
 
-function renderTripSelector() {
-  const sel = document.getElementById("trip-select");
-  sel.innerHTML = allTrips.map((t) =>
-    `<option value="${t.id}"${t.id === currentTripId ? " selected" : ""}>${t.title}</option>`
-  ).join("");
+function formatRelative(ts) {
+  if (!ts) return "";
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "à l'instant";
+  if (min < 60) return "il y a " + min + " min";
+  const h = Math.floor(min / 60);
+  if (h < 24) return "il y a " + h + " h";
+  const d = Math.floor(h / 24);
+  if (d < 7) return "il y a " + d + " j";
+  return new Date(ts).toLocaleDateString("fr-FR");
+}
+
+function renderHome() {
+  const list = document.getElementById("home-trip-list");
+  if (!list) return;
+  if (!allTrips.length) {
+    list.innerHTML = '<p class="home-empty">Aucun voyage. Crée-en un ou importe-en pour commencer.</p>';
+    return;
+  }
+  const sorted = [...allTrips].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  list.innerHTML = sorted.map((t) => {
+    const days = (t.state && t.state.numDays) || 0;
+    const updated = formatRelative(t.updatedAt);
+    const isActive = t.id === currentTripId;
+    return `<article class="trip-card ${isActive ? "active" : ""}" onclick="openTrip(${t.id})">
+      <h3 class="trip-card-title">${escapeHtml(t.title || "Voyage")}</h3>
+      <div class="trip-card-meta">
+        <span>${days} jour${days > 1 ? "s" : ""}</span>
+        ${updated ? `<span class="dot">·</span><span>${updated}</span>` : ""}
+      </div>
+      <div class="trip-card-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-gold btn-sm btn-open" onclick="openTrip(${t.id})">Ouvrir</button>
+        <button class="trip-card-icon" title="Exporter" onclick="exportTripFromHome(${t.id})">↗</button>
+        <button class="trip-card-icon" title="Partager (visiteur)" onclick="shareTripFromHome(${t.id})">👥</button>
+        <button class="trip-card-icon danger" title="Supprimer" onclick="deleteTrip(${t.id})">✕</button>
+      </div>
+    </article>`;
+  }).join("");
+}
+
+function openHome() {
+  setView("home");
+  renderHome();
+}
+
+function openTrip(id) {
+  switchTrip(id);
 }
 
 function switchTrip(id) {
@@ -122,28 +164,49 @@ function switchTrip(id) {
   state = getTripState(currentTripId);
   localStorage.setItem("voyageplanner_current", String(currentTripId));
   focusedDay = null;
+  setView("trip");
   restoreUI();
+  if (typeof syncCheckRemote === "function") syncCheckRemote();
+}
+
+function exportTripFromHome(id) {
+  switchTrip(id);
+  openExport();
+}
+
+function shareTripFromHome(id) {
+  switchTrip(id);
+  openVisitorShare();
 }
 
 function createTrip() {
   const id = Date.now();
   const newState = { title: "Nouveau Voyage", numDays: 3, flights: [], days: [] };
-  allTrips.push({ id, title: newState.title, state: newState });
+  allTrips.push({ id, title: newState.title, state: newState, updatedAt: Date.now() });
   currentTripId = id;
   state = newState;
   ensureFlights();
   saveAll();
+  setView("trip");
   restoreUI();
 }
 
-function deleteTrip() {
-  if (allTrips.length <= 1) return;
-  if (!confirm("Supprimer ce voyage ?")) return;
-  allTrips = allTrips.filter((t) => t.id !== currentTripId);
-  currentTripId = allTrips[0].id;
-  state = getTripState(currentTripId);
+function deleteTrip(idArg) {
+  const id = idArg !== undefined ? Number(idArg) : currentTripId;
+  const trip = allTrips.find((t) => t.id === id);
+  if (!trip) return;
+  if (allTrips.length <= 1) { alert("Tu dois garder au moins un voyage."); return; }
+  if (!confirm(`Supprimer le voyage « ${trip.title || "Voyage"} » ?`)) return;
+  allTrips = allTrips.filter((t) => t.id !== id);
+  if (currentTripId === id) {
+    currentTripId = allTrips[0].id;
+    state = getTripState(currentTripId);
+  }
   saveAll();
-  restoreUI();
+  renderHome();
+  if (currentView === "trip" && document.getElementById("trip-title-input")) {
+    restoreUI();
+  }
 }
 
 function openExport() {
@@ -238,12 +301,9 @@ function applyImport() {
     if (!imported || typeof imported !== "object") throw new Error("format");
     const id = Date.now();
     const title = imported.title || "Voyage importé";
-    allTrips.push({ id, title, state: imported });
-    currentTripId = id;
-    state = imported;
-    saveState();
-    renderTripSelector();
-    restoreUI();
+    allTrips.push({ id, title, state: imported, updatedAt: Date.now() });
+    saveAll();
+    renderHome();
     closeModal();
   } catch (e) {
     status.textContent = "⚠ Code invalide";

@@ -19,23 +19,32 @@
   <link rel="stylesheet" href="css/calendar.css">
   <link rel="stylesheet" href="css/detail.css">
   <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/home.css">
 </head>
-<body>
+<body class="view-home">
 
 <header class="app-header">
   <div class="logo"><img src="icon.png" alt="" class="logo-icon"> <span>Jet</span>Laggueur</div>
-  <div class="trip-selector">
-    <select id="trip-select" onchange="switchTrip(this.value)"></select>
-    <button class="btn btn-gold btn-sm" onclick="createTrip()">Nouveau</button>
-    <button class="btn btn-danger btn-sm" onclick="deleteTrip()">Suppr.</button>
-    <button class="btn btn-ghost btn-sm" onclick="openExport()">↗ Export</button>
-    <button class="btn btn-ghost btn-sm" onclick="openVisitorShare()" title="Partager une version visiteur (lieux floutés)">👥 Partager</button>
-    <button class="btn btn-ghost btn-sm" onclick="openImport()">↙ Import</button>
-    <button class="btn btn-ghost btn-sm" onclick="openSync()" title="Synchroniser via Pantry">☁ Sync</button>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm header-trip-only" onclick="openHome()" title="Retour à l'accueil">🏠 Voyages</button>
+    <input type="text" id="trip-title-input" class="header-trip-only" placeholder="Nom du voyage…" value="Mon Voyage">
     <select id="theme-select" class="theme-select" onchange="setTheme(this.value)" title="Thème"></select>
   </div>
-  <input type="text" id="trip-title-input" placeholder="Nom du voyage…" value="Mon Voyage">
 </header>
+
+<section id="home-screen">
+  <div class="home-container">
+    <div class="home-header">
+      <h1>Mes voyages</h1>
+      <div class="home-actions">
+        <button class="btn btn-gold" onclick="createTrip()">+ Nouveau voyage</button>
+        <button class="btn btn-ghost" onclick="openImport()">↙ Importer</button>
+        <button class="btn btn-ghost" onclick="openSync()" title="Synchroniser">☁ Sync</button>
+      </div>
+    </div>
+    <div id="home-trip-list" class="home-trip-list"></div>
+  </div>
+</section>
 
 <div class="map-panel">
   <div id="map"></div>

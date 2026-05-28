@@ -30,6 +30,17 @@ function showTab(name, event) {
   if (name === "jours") renderCalendar();
 }
 
+let currentView = "home";
+
+function setView(v) {
+  currentView = v === "trip" ? "trip" : "home";
+  document.body.classList.toggle("view-home", currentView === "home");
+  try { localStorage.setItem("voyageplanner_view", currentView); } catch (e) {}
+  if (currentView === "trip" && typeof map !== "undefined" && map) {
+    setTimeout(() => map.invalidateSize(), 50);
+  }
+}
+
 function restoreUI() {
   initThemes();
   adjustHeaderSpacing();
@@ -51,7 +62,6 @@ function restoreUI() {
   if (vzr) vzr.value = String(getCalVZoom());
   try { lastSnapshot = JSON.stringify(state); } catch (e) {}
   ensureFlights();
-  renderTripSelector();
   document.getElementById("trip-title-input").value = state.title;
   document.title = state.title + " — Jet Laggueur";
   renderFlights();
