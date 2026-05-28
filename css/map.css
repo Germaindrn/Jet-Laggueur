@@ -1,17 +1,19 @@
 /* Pill-shaped map markers, polyline route info, geocoding feedback states. */
 
 .route-segment {
-  background: rgba(201, 168, 76, 0.12);
+  background: var(--cream);
   border-left: 3px solid var(--gold);
   padding: 6px 10px;
   margin: 5px 0;
   border-radius: 0 6px 6px 0;
-  font-size: 0.76rem;
-  color: var(--navy);
+  font-size: 0.8rem;
+  color: var(--text);
 }
 
+.route-segment b,
 .route-segment strong {
-  color: var(--gold);
+  color: var(--navy);
+  font-weight: 700;
 }
 
 .geocode-status {

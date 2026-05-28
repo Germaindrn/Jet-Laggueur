@@ -677,7 +677,7 @@ async function fillTravelTimes(trip) {
         }
         if (myToken !== fillTravelToken) return;
         if (info) {
-          const h = Math.max(24, info.min * pxPerMin);
+          const h = Math.max(16, info.min * pxPerMin);
           const top = Number(el.dataset.activityTop) || 0;
           el.style.top = Math.max(0, top - h) + "px";
           el.style.height = h + "px";

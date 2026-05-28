@@ -289,38 +289,18 @@ body.hide-nights .cal-evt-night {
 }
 
 .cal-evt-travel {
-  background: var(--gold) !important;
-  border-left: 3px solid var(--navy);
-  color: var(--navy) !important;
+  background: var(--navy);
+  border-left: 3px solid var(--gold);
+  color: #fff;
   cursor: default;
   pointer-events: none;
-  padding: 2px 8px;
-  min-height: 24px;
-  display: flex;
-  align-items: center;
+  padding: 4px 7px;
 }
 
-.cal-evt-travel .evt-compact {
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-}
-
-.cal-evt-travel .travel-text,
 .cal-evt-travel .evt-compact-name {
-  color: var(--navy) !important;
-  font-weight: 700 !important;
-  font-size: 0.8rem !important;
-  letter-spacing: 0.02em;
-}
-
-.cal-evt-travel .travel-text::before {
-  content: "🚗  ";
-}
-
-.cal-evt-travel .travel-text:empty::before {
-  content: "";
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.72rem;
 }
 
 .evt-compact-time {
