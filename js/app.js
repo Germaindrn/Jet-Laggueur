@@ -267,6 +267,49 @@ function toggleTravel(show) {
   document.body.classList.toggle("hide-travel", !show);
 }
 
+const CAL_ZOOM_MIN = 40;
+const CAL_ZOOM_MAX = 320;
+const CAL_ZOOM_DEFAULT = 220;
+const CAL_ZOOM_STEP = 20;
+
+function getCalZoom() {
+  try {
+    const v = Number(localStorage.getItem("voyageplanner_calzoom"));
+    if (v >= CAL_ZOOM_MIN && v <= CAL_ZOOM_MAX) return v;
+  } catch (e) {}
+  return CAL_ZOOM_DEFAULT;
+}
+
+function applyCalZoom(v) {
+  const grid = document.getElementById("calendar-grid");
+  if (grid) grid.style.setProperty("--cal-day-w", v + "px");
+  const range = document.getElementById("cal-zoom-range");
+  if (range && Number(range.value) !== v) range.value = String(v);
+}
+
+function setCalZoom(v) {
+  const clamped = Math.max(CAL_ZOOM_MIN, Math.min(CAL_ZOOM_MAX, Math.round(v)));
+  try { localStorage.setItem("voyageplanner_calzoom", String(clamped)); } catch (e) {}
+  applyCalZoom(clamped);
+}
+
+function changeCalZoom(dir) {
+  setCalZoom(getCalZoom() + dir * CAL_ZOOM_STEP);
+}
+
+function fitCalZoom() {
+  const wrapper = document.querySelector(".calendar-wrapper");
+  const grid = document.getElementById("calendar-grid");
+  if (!wrapper || !grid) return;
+  const hours = grid.querySelector(".cal-hours");
+  const hoursW = hours ? hours.getBoundingClientRect().width : 50;
+  const days = grid.querySelectorAll(".cal-day").length;
+  if (!days) return;
+  const available = wrapper.clientWidth - hoursW - 8;
+  const per = Math.floor(available / days);
+  setCalZoom(per);
+}
+
 const THEMES = [
   { id: "sable", name: "Sable & Or" },
   { id: "nuit", name: "Nuit étoilée" },
@@ -274,6 +317,20 @@ const THEMES = [
   { id: "foret", name: "Forêt" },
   { id: "lavande", name: "Lavande" },
   { id: "ardoise", name: "Ardoise" },
+];
+
+const ACTIVITY_COLORS = [
+  { value: "", name: "Couleur du thème" },
+  { value: "#e74c3c", name: "Rouge" },
+  { value: "#e67e22", name: "Orange" },
+  { value: "#f1c40f", name: "Jaune" },
+  { value: "#27ae60", name: "Vert" },
+  { value: "#16a085", name: "Sarcelle" },
+  { value: "#3498db", name: "Bleu" },
+  { value: "#5e60ce", name: "Indigo" },
+  { value: "#9b59b6", name: "Violet" },
+  { value: "#e84393", name: "Rose" },
+  { value: "#34495e", name: "Ardoise" },
 ];
 
 function setTheme(id) {
@@ -320,6 +377,8 @@ function restoreUI() {
   document.body.classList.toggle("hide-travel", !show);
   const tt = document.getElementById("toggle-travel");
   if (tt) tt.checked = show;
+  const zr = document.getElementById("cal-zoom-range");
+  if (zr) zr.value = String(getCalZoom());
   try { lastSnapshot = JSON.stringify(state); } catch (e) {}
   ensureFlights();
   renderTripSelector();
@@ -420,7 +479,7 @@ async function updateMap() {
         pts.push({
           latlng: act.latLng,
           label,
-          color: colGold,
+          color: act.color || colGold,
           dayIdx: i,
           popup: `<b>${act.time || ""}</b> ${escapeHtml(act.name || "")}${act.description ? "<br><small>" + escapeHtml(act.description) + "</small>" : ""}`,
         });
@@ -1044,10 +1103,11 @@ function renderCalendar() {
       const dur = Number(act.durationMin) || 60;
       const heightPx = Math.max(28, (dur / 60) * HOUR_PX);
       const sel = currentDetail && currentDetail.type === "act" && currentDetail.day === i && currentDetail.id === act.id ? " selected" : "";
+      const colorStyle = act.color ? `--act-color:${act.color};` : "";
       events += `<div class="cal-evt cal-evt-travel" id="travel-act-${act.id}" data-activity-top="${top}" style="top:${top}px;height:0;display:none">
         <div class="evt-compact"><span class="evt-compact-name travel-text"></span></div>
       </div>`;
-      events += `<div class="cal-evt cal-evt-act${sel}" style="top:${top}px;height:${heightPx}px" id="evt-${i}-${act.id}" data-day="${i}" data-id="${act.id}">
+      events += `<div class="cal-evt cal-evt-act${sel}" style="${colorStyle}top:${top}px;height:${heightPx}px" id="evt-${i}-${act.id}" data-day="${i}" data-id="${act.id}">
         <div class="evt-compact">
           <span class="evt-compact-name">${escapeHtml(act.name || "Sans titre")}</span>
         </div>
@@ -1096,6 +1156,7 @@ function renderCalendar() {
   }).join("");
 
   grid.innerHTML = hoursCol + daysCols;
+  applyCalZoom(getCalZoom());
 
   initActivityDragDrop(START_HOUR, HOUR_PX);
   initCalendarClickToCreate(START_HOUR, HOUR_PX);
@@ -1148,6 +1209,68 @@ function initActivityDragDrop(START_HOUR, HOUR_PX) {
     });
   });
 
+  const wrapper = grid.closest(".calendar-wrapper");
+  const SCROLL_EDGE = 70;
+  const SCROLL_MAX_SPEED = 22;
+  let autoScrollRaf = null;
+  let lastPointerEvt = null;
+
+  function applyDragPosition(e) {
+    if (!drag) return;
+    const days = grid.querySelectorAll(".cal-day");
+    let targetBody = null;
+    days.forEach((d, i) => {
+      const r = d.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right) {
+        drag.newDay = i;
+        targetBody = d.querySelector(".cal-day-body");
+      }
+    });
+    if (!targetBody) {
+      const r0 = days[0]?.getBoundingClientRect();
+      const rLast = days[days.length - 1]?.getBoundingClientRect();
+      if (r0 && e.clientX < r0.left) {
+        drag.newDay = 0;
+        targetBody = days[0].querySelector(".cal-day-body");
+      } else if (rLast && e.clientX > rLast.right) {
+        drag.newDay = days.length - 1;
+        targetBody = days[days.length - 1].querySelector(".cal-day-body");
+      }
+    }
+    if (!targetBody) targetBody = days[drag.newDay]?.querySelector(".cal-day-body");
+    if (!targetBody) return;
+    if (drag.el.parentElement !== targetBody) targetBody.appendChild(drag.el);
+    const r = targetBody.getBoundingClientRect();
+    let top = e.clientY - r.top - drag.offsetY;
+    top = Math.max(0, Math.min(top, r.height - drag.el.offsetHeight));
+    drag.el.style.top = top + "px";
+    drag.newTop = top;
+  }
+
+  function autoScrollTick() {
+    autoScrollRaf = null;
+    if (!drag || !lastPointerEvt || !wrapper) return;
+    const wr = wrapper.getBoundingClientRect();
+    let dx = 0;
+    if (lastPointerEvt.clientX < wr.left + SCROLL_EDGE) {
+      const t = (wr.left + SCROLL_EDGE - lastPointerEvt.clientX) / SCROLL_EDGE;
+      dx = -Math.ceil(Math.min(1, t) * SCROLL_MAX_SPEED);
+    } else if (lastPointerEvt.clientX > wr.right - SCROLL_EDGE) {
+      const t = (lastPointerEvt.clientX - (wr.right - SCROLL_EDGE)) / SCROLL_EDGE;
+      dx = Math.ceil(Math.min(1, t) * SCROLL_MAX_SPEED);
+    }
+    if (dx !== 0) {
+      const before = wrapper.scrollLeft;
+      wrapper.scrollLeft = before + dx;
+      if (wrapper.scrollLeft !== before) applyDragPosition(lastPointerEvt);
+      autoScrollRaf = requestAnimationFrame(autoScrollTick);
+    }
+  }
+
+  function maybeStartAutoScroll() {
+    if (autoScrollRaf == null) autoScrollRaf = requestAnimationFrame(autoScrollTick);
+  }
+
   grid.querySelectorAll(".cal-evt-act").forEach((evt) => {
     evt.addEventListener("pointerdown", (e) => {
       if (e.target.closest(".evt-resize-handle")) return;
@@ -1176,29 +1299,17 @@ function initActivityDragDrop(START_HOUR, HOUR_PX) {
         drag.moved = true;
         evt.classList.add("dragging");
       }
-      const days = grid.querySelectorAll(".cal-day");
-      let targetBody = null;
-      days.forEach((d, i) => {
-        const r = d.getBoundingClientRect();
-        if (e.clientX >= r.left && e.clientX <= r.right) {
-          drag.newDay = i;
-          targetBody = d.querySelector(".cal-day-body");
-        }
-      });
-      if (!targetBody) targetBody = days[drag.newDay]?.querySelector(".cal-day-body");
-      if (!targetBody) return;
-      if (drag.el.parentElement !== targetBody) targetBody.appendChild(drag.el);
-      const r = targetBody.getBoundingClientRect();
-      let top = e.clientY - r.top - drag.offsetY;
-      top = Math.max(0, Math.min(top, r.height - drag.el.offsetHeight));
-      drag.el.style.top = top + "px";
-      drag.newTop = top;
+      lastPointerEvt = e;
+      applyDragPosition(e);
+      maybeStartAutoScroll();
     });
 
     evt.addEventListener("pointerup", (e) => {
       if (!drag || drag.el !== evt) return;
       const d = drag;
       drag = null;
+      lastPointerEvt = null;
+      if (autoScrollRaf != null) { cancelAnimationFrame(autoScrollRaf); autoScrollRaf = null; }
       evt.classList.remove("dragging");
       if (!d.moved) {
         openActivityDetail(d.day, d.id, e);
@@ -1225,6 +1336,8 @@ function initActivityDragDrop(START_HOUR, HOUR_PX) {
       if (drag && drag.el === evt) {
         evt.classList.remove("dragging");
         drag = null;
+        lastPointerEvt = null;
+        if (autoScrollRaf != null) { cancelAnimationFrame(autoScrollRaf); autoScrollRaf = null; }
         renderCalendar();
       }
     });
@@ -1244,12 +1357,22 @@ function openActivityDetail(dayIdx, actId, ev) {
   const body = document.getElementById("detail-body");
   const title = document.getElementById("detail-title");
   title.textContent = `Jour ${dayIdx + 1} · Activité`;
+  const swatches = ACTIVITY_COLORS.map((c) => {
+    const selected = (act.color || "") === c.value ? " selected" : "";
+    const isDefault = c.value === "";
+    const styleAttr = isDefault ? "" : ` style="background:${c.value}"`;
+    const cls = isDefault ? "color-swatch color-default" : "color-swatch";
+    return `<button type="button" class="${cls}${selected}" data-color="${c.value}" title="${c.name}" aria-label="${c.name}"${styleAttr}></button>`;
+  }).join("");
   body.innerHTML = `
     <label class="detail-label">Nom
       <input type="text" id="dp-name" placeholder="Activité" value="${escapeAttr(act.name || "")}">
     </label>
     <label class="detail-label">Durée (minutes)
       <input type="number" id="dp-duration" min="15" step="15" value="${Number(act.durationMin) || 60}">
+    </label>
+    <label class="detail-label">Couleur
+      <div class="color-palette" id="dp-colors">${swatches}</div>
     </label>
     <label class="detail-label">Lieu
       <input type="text" id="dp-place" placeholder="Adresse, ville…" value="${escapeAttr(act.place || "")}">
@@ -1263,6 +1386,19 @@ function openActivityDetail(dayIdx, actId, ev) {
       <button class="btn btn-danger btn-sm" onclick="removeCalAct(${dayIdx},${actId});closeDetail()">Supprimer</button>
     </div>
   `;
+  document.querySelectorAll("#dp-colors .color-swatch").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const c = btn.dataset.color || "";
+      updateActivity(dayIdx, actId, "color", c || null);
+      document.querySelectorAll("#dp-colors .color-swatch").forEach((b) => b.classList.toggle("selected", b === btn));
+      const evtEl = document.getElementById(`evt-${dayIdx}-${actId}`);
+      if (evtEl) {
+        if (c) evtEl.style.setProperty("--act-color", c);
+        else evtEl.style.removeProperty("--act-color");
+      }
+      updateMap();
+    });
+  });
   document.getElementById("dp-duration").addEventListener("input", (e) => {
     const v = Math.max(15, Number(e.target.value) || 60);
     updateActivity(dayIdx, actId, "durationMin", v);

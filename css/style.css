@@ -904,6 +904,7 @@ select:focus {
 .calendar-grid {
   display: flex;
   min-width: max-content;
+  --cal-day-w: 220px;
 }
 
 /* Hours column */
@@ -933,8 +934,8 @@ select:focus {
 
 /* Day column */
 .cal-day {
-  width: 220px;
-  min-width: 220px;
+  width: var(--cal-day-w, 220px);
+  min-width: var(--cal-day-w, 220px);
   border-left: 1px solid var(--sand);
   background: var(--white);
   display: flex;
@@ -1043,8 +1044,8 @@ select:focus {
 }
 
 .cal-evt-act {
-  background: color-mix(in srgb, var(--gold) 18%, transparent);
-  border-left: 3px solid var(--gold);
+  background: color-mix(in srgb, var(--act-color, var(--gold)) 18%, transparent);
+  border-left: 3px solid var(--act-color, var(--gold));
   min-height: 24px;
   cursor: grab;
   transition: background 0.15s, box-shadow 0.15s;
@@ -1057,7 +1058,7 @@ select:focus {
 }
 
 .cal-evt-act:hover {
-  background: color-mix(in srgb, var(--gold) 32%, transparent);
+  background: color-mix(in srgb, var(--act-color, var(--gold)) 32%, transparent);
 }
 
 .cal-evt.selected {
@@ -1091,19 +1092,62 @@ body.hide-travel .cal-evt-travel {
   accent-color: var(--gold);
 }
 
-.cal-evt-travel {
-  background: color-mix(in srgb, var(--navy-light) 12%, transparent);
-  border-left: 3px solid color-mix(in srgb, var(--navy-light) 60%, var(--cream));
+.cal-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--white);
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+}
+
+.cal-zoom-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
   color: var(--navy);
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cal-zoom-btn:hover {
+  background: var(--navy);
+  color: var(--cream);
+}
+
+.cal-zoom-fit {
+  font-size: 0.9rem;
+}
+
+.cal-zoom-range {
+  width: 110px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.cal-evt-travel {
+  background: color-mix(in srgb, var(--gold) 22%, var(--white));
+  border-left: 3px solid var(--gold);
+  color: var(--text);
   cursor: default;
   pointer-events: none;
   padding: 4px 7px;
 }
 
 .cal-evt-travel .evt-compact-name {
-  color: var(--navy-light);
-  font-weight: 600;
+  color: var(--text);
+  font-weight: 700;
   font-size: 0.72rem;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--white) 60%, transparent);
 }
 
 .evt-compact-time {
@@ -1223,6 +1267,49 @@ body.hide-travel .cal-evt-travel {
   margin-top: 18px;
   padding-top: 14px;
   border-top: 1px solid var(--sand);
+}
+
+.color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--sand);
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.selected {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 2px var(--cream), 0 0 0 4px var(--navy);
+}
+
+.color-swatch.color-default {
+  background: repeating-linear-gradient(45deg, var(--white), var(--white) 4px, var(--sand) 4px, var(--sand) 8px);
+}
+
+.color-swatch.color-default::after {
+  content: "↺";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: var(--navy);
+  font-weight: 700;
 }
 
 .detail-map-wrap {

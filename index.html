@@ -53,6 +53,12 @@
             <input type="checkbox" id="toggle-travel" onchange="toggleTravel(this.checked)" checked>
             Afficher les trajets
           </label>
+          <div class="cal-zoom" role="group" aria-label="Zoom horizontal de la timeline">
+            <button class="cal-zoom-btn" onclick="changeCalZoom(-1)" title="Dézoomer la timeline" aria-label="Dézoomer">−</button>
+            <input type="range" id="cal-zoom-range" class="cal-zoom-range" min="40" max="320" step="10" value="220" oninput="setCalZoom(Number(this.value))" title="Largeur d'un jour">
+            <button class="cal-zoom-btn" onclick="changeCalZoom(1)" title="Zoomer la timeline" aria-label="Zoomer">+</button>
+            <button class="cal-zoom-btn cal-zoom-fit" onclick="fitCalZoom()" title="Afficher tout le voyage" aria-label="Tout afficher">↔</button>
+          </div>
         </div>
         <div class="calendar-wrapper">
           <div id="calendar-grid" class="calendar-grid"></div>
