@@ -81,8 +81,10 @@ function renderCalendar() {
   const END_HOUR = 24;
   const HOUR_PX = getCalVZoom();
 
-  // Hour labels column
-  let hoursCol = '<div class="cal-hours">';
+  // Hour labels column — same height as the day bodies so the side strip
+  // (background + separator) spans the full calendar height.
+  const bodyHeight = (END_HOUR - START_HOUR) * HOUR_PX;
+  let hoursCol = `<div class="cal-hours" style="height:${bodyHeight}px">`;
   for (let h = START_HOUR; h <= END_HOUR; h++) {
     hoursCol += `<div class="cal-hour-label" style="top:${(h - START_HOUR) * HOUR_PX}px">${String(h).padStart(2, "0")}:00</div>`;
   }
@@ -176,7 +178,7 @@ function renderCalendar() {
         <div class="cal-day-wd">${wd.charAt(0).toUpperCase() + wd.slice(1)}</div>
         <div class="cal-day-ds">${ds}</div>
       </div>
-      <div class="cal-day-body" style="height:${(END_HOUR - START_HOUR) * HOUR_PX}px">
+      <div class="cal-day-body" style="height:${bodyHeight}px">
         ${events}
       </div>
     </div>`;
