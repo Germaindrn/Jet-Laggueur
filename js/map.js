@@ -1,11 +1,32 @@
 // Leaflet map, marker pills, OSRM routing, Nominatim geocoding.
 
+// ============== BASE LAYER ==============
+// CARTO's free basemaps now stamp "API KEY REQUIRED" across every tile, so the
+// default is OpenStreetMap's standard layer, softened in CSS (.leaflet-tile-pane)
+// to keep the pale look. Fill in CARTO_API_KEY to go back to Positron.
+const CARTO_API_KEY = "";
+
+const BASE_TILES = CARTO_API_KEY
+  ? {
+      url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?api_key=${CARTO_API_KEY}`,
+      attribution: "&copy; OpenStreetMap &copy; CARTO",
+      options: { subdomains: "abcd", maxZoom: 20 },
+    }
+  : {
+      url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      attribution: "&copy; OpenStreetMap",
+      options: { maxZoom: 19 },
+    };
+
+function addBaseLayer(target, withAttribution = true) {
+  return L.tileLayer(BASE_TILES.url, {
+    ...BASE_TILES.options,
+    attribution: withAttribution ? BASE_TILES.attribution : "",
+  }).addTo(target);
+}
+
 const map = L.map("map", { zoomControl: true }).setView([46.2, 2.3], 5);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-  attribution: "&copy; OpenStreetMap &copy; CARTO",
-  subdomains: "abcd",
-  maxZoom: 20,
-}).addTo(map);
+addBaseLayer(map);
 
 let mapMarkers = [];
 let routePolylines = [];

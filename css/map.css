@@ -1,5 +1,11 @@
 /* Pill-shaped map markers, polyline route info, geocoding feedback states. */
 
+/* OSM's standard tiles are more saturated than the app's palette. Desaturating
+   the tile pane (not the marker/overlay panes) gives back the pale basemap. */
+.leaflet-tile-pane {
+  filter: grayscale(0.85) saturate(0.7) brightness(1.1) contrast(0.86);
+}
+
 .route-segment {
   background: var(--cream);
   border-left: 3px solid var(--gold);

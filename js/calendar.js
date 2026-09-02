@@ -513,10 +513,7 @@ function initDetailMap(latLng) {
   const center = latLng || [46.2, 2.3];
   const zoom = latLng ? 15 : 5;
   detailMap = L.map(el, { zoomControl: true, attributionControl: false }).setView(center, zoom);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    subdomains: "abcd",
-    maxZoom: 20,
-  }).addTo(detailMap);
+  addBaseLayer(detailMap, false);
   if (latLng) {
     detailMarker = L.marker(latLng).addTo(detailMap);
   }
