@@ -202,9 +202,24 @@ async function syncPush() {
   setSyncStatus("⏳ Envoi…");
   try {
     const shared = tripsToShare(cfg);
-    const r = await backendPush(cfg, { trips: shared, updatedAt: Date.now() });
+    // Both backends hold a single document, so a blind write would delete the
+    // trips the other device pushed. Start from what is online and overwrite
+    // only the trips being sent.
+    let remote = [];
+    try { remote = await backendFetchTrips(cfg); } catch (e) { remote = []; }
+    const remoteById = new Map(remote.map((t) => [t.id, t]));
+    const overwritten = shared.filter((t) => {
+      const ex = remoteById.get(t.id);
+      return ex && (ex.updatedAt || 0) > (t.updatedAt || 0);
+    }).length;
+    const payload = replaceTrips(remote, shared);
+    const r = await backendPush(cfg, { trips: payload, updatedAt: Date.now() });
     if (!r.ok) throw new Error("HTTP " + r.status);
-    setSyncStatus("✓ Envoyé (" + shared.length + " voyages)");
+    setSyncStatus(
+      "✓ Envoyé (" + shared.length + " voyage" + (shared.length > 1 ? "s" : "") +
+      ", " + payload.length + " en ligne)" +
+      (overwritten ? " ⚠ " + overwritten + " version en ligne plus récente écrasée" : "")
+    );
   } catch (e) {
     setSyncStatus("⚠ Erreur envoi : " + e.message);
   }
@@ -226,19 +241,24 @@ async function syncPullPicker() {
   renderImportPicker(remote);
 }
 
+function sameTripContent(a, b) {
+  try { return JSON.stringify(a.state) === JSON.stringify(b.state); } catch (e) { return false; }
+}
+
 function renderImportPicker(remote) {
   const localById = new Map(allTrips.map((t) => [t.id, t]));
   const items = remote.map((t) => {
     const local = localById.get(t.id);
     let badge, badgeColor, defaultChecked;
     if (!local) { badge = "nouveau"; badgeColor = "#3aa66a"; defaultChecked = true; }
+    else if (sameTripContent(local, t)) { badge = "identique"; badgeColor = "#888"; defaultChecked = false; }
     else if ((t.updatedAt || 0) > (local.updatedAt || 0)) { badge = "mise à jour"; badgeColor = "#c98a2b"; defaultChecked = true; }
-    else { badge = "identique"; badgeColor = "#888"; defaultChecked = false; }
+    else { badge = "copie locale plus récente"; badgeColor = "#7b5ea7"; defaultChecked = false; }
     return { trip: t, badge, badgeColor, defaultChecked };
   });
   document.getElementById("modal-title").textContent = "Importer des voyages";
   document.getElementById("modal-body").innerHTML = `
-    <p class="modal-hint">Coche les voyages à importer. Les « identiques » sont décochés par défaut.</p>
+    <p class="modal-hint">Coche les voyages à importer : un voyage coché <strong>remplace</strong> la copie locale, même si elle est plus récente.</p>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
       <strong>${remote.length} voyage(s) trouvé(s)</strong>
       <span style="font-size:11px;">
@@ -275,20 +295,38 @@ function confirmImport() {
     if (cb.checked) picked.push(items[Number(cb.dataset.idx)].trip);
   });
   if (!picked.length) { setSyncStatus("Aucune sélection."); return; }
-  allTrips = mergeTrips(allTrips, picked);
+  const knownIds = new Set(allTrips.map((t) => t.id));
+  const replaced = picked.filter((t) => knownIds.has(t.id)).length;
+  // Ticking a trip is an explicit choice, so it always wins. Going through
+  // mergeTrips() here dropped the import whenever the local copy carried a
+  // newer updatedAt, which is what forced the "delete then re-sync" detour.
+  allTrips = replaceTrips(allTrips, picked);
   if (!allTrips.find((t) => t.id === currentTripId)) {
     currentTripId = allTrips[0].id;
   }
   state = getTripState(currentTripId);
   ensureFlights();
+  seedTripSignatures(); // after ensureFlights, so the seed matches what is in memory
   localStorage.setItem("voyageplanner_trips", JSON.stringify(allTrips));
   localStorage.setItem("voyageplanner_current", String(currentTripId));
   renderHome();
   if (currentView === "trip") restoreUI();
   window._syncImportItems = null;
-  setSyncStatus("✓ Importé (" + picked.length + " voyage" + (picked.length > 1 ? "s" : "") + ")");
+  const added = picked.length - replaced;
+  const parts = [];
+  if (replaced) parts.push(replaced + " remplacé" + (replaced > 1 ? "s" : ""));
+  if (added) parts.push(added + " ajouté" + (added > 1 ? "s" : ""));
+  setSyncStatus("✓ Importé : " + parts.join(", "));
 }
 
+// Incoming wins unconditionally — for explicit user choices.
+function replaceTrips(local, incoming) {
+  const byId = new Map(local.map((t) => [t.id, t]));
+  for (const t of incoming) byId.set(t.id, t);
+  return Array.from(byId.values());
+}
+
+// Newest wins — for the silent background refresh.
 function mergeTrips(local, remote) {
   const byId = new Map();
   for (const t of local) byId.set(t.id, t);
@@ -323,6 +361,7 @@ async function syncCheckRemote() {
     allTrips = mergeTrips(allTrips, updates);
     state = getTripState(currentTripId);
     ensureFlights();
+    seedTripSignatures(); // after ensureFlights, so the seed matches what is in memory
     localStorage.setItem("voyageplanner_trips", JSON.stringify(allTrips));
     renderHome();
     if (currentView === "trip") restoreUI();

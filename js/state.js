@@ -4,6 +4,23 @@ let allTrips = loadAllTrips();
 let currentTripId = loadCurrentTripId();
 let state = getTripState(currentTripId);
 
+// Content signature per trip, kept in memory only (never stored nor synced).
+// saveAll() stamps updatedAt only when the signature moved, so an incidental
+// save — opening a trip, creating or deleting another one — no longer makes
+// this copy look newer than the server's and block a sync import.
+const tripSigs = new Map();
+
+function tripSignature(s) {
+  try { return JSON.stringify(s); } catch (e) { return null; }
+}
+
+function seedTripSignatures() {
+  tripSigs.clear();
+  for (const t of allTrips) tripSigs.set(t.id, tripSignature(t.state));
+}
+
+seedTripSignatures();
+
 function defaultFlight() {
   return {
     id: Date.now(),
@@ -67,7 +84,11 @@ function saveAll() {
   if (trip) {
     trip.state = state;
     trip.title = state.title;
-    trip.updatedAt = Date.now();
+    const sig = tripSignature(state);
+    if (sig === null || sig !== tripSigs.get(trip.id)) {
+      trip.updatedAt = Date.now();
+      tripSigs.set(trip.id, sig);
+    }
   }
   try {
     localStorage.setItem("voyageplanner_trips", JSON.stringify(allTrips));
@@ -183,6 +204,7 @@ function createTrip() {
   const id = Date.now();
   const newState = { title: "Nouveau Voyage", numDays: 3, flights: [], days: [] };
   allTrips.push({ id, title: newState.title, state: newState, updatedAt: Date.now() });
+  tripSigs.set(id, tripSignature(newState));
   currentTripId = id;
   state = newState;
   ensureFlights();
@@ -302,6 +324,7 @@ function applyImport() {
     const id = Date.now();
     const title = imported.title || "Voyage importé";
     allTrips.push({ id, title, state: imported, updatedAt: Date.now() });
+    tripSigs.set(id, tripSignature(imported));
     saveAll();
     renderHome();
     closeModal();
