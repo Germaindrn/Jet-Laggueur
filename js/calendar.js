@@ -139,6 +139,7 @@ function renderCalendar() {
       events += `<div class="cal-evt cal-evt-act${sel}" style="${colorStyle}top:${top}px;height:${heightPx}px" id="evt-${i}-${act.id}" data-day="${i}" data-id="${act.id}">
         <div class="evt-compact">
           <span class="evt-compact-name">${evtLabel}</span>
+          <span class="evt-weather" id="wx-${i}-${act.id}" style="display:none"></span>
         </div>
         <div class="evt-resize-handle" title="Étirer pour changer la durée"></div>
       </div>`;
@@ -190,8 +191,47 @@ function renderCalendar() {
   initActivityDragDrop(START_HOUR, HOUR_PX);
   initCalendarClickToCreate(START_HOUR, HOUR_PX);
 
-  // Async: fill in travel times
+  // Async: fill in travel times, then the weather pills
   fillTravelTimes(trip);
+  fillWeather(trip);
+}
+
+let fillWeatherToken = 0;
+
+// Groups every located activity by place, so each place costs one request no
+// matter how many days it appears on. Runs after the grid is in the DOM.
+async function fillWeather(trip) {
+  const myToken = ++fillWeatherToken;
+  const byLoc = new Map();
+  trip.dates.forEach((date, i) => {
+    const day = state.days[i];
+    if (!day) return;
+    day.activities.forEach((act) => {
+      if (!act.latLng) return;
+      const key = weatherKey(act.latLng);
+      if (!byLoc.has(key)) byLoc.set(key, { ll: act.latLng, items: [] });
+      byLoc.get(key).items.push({ date, time: act.time, elId: `wx-${i}-${act.id}` });
+    });
+  });
+  if (!byLoc.size) return;
+
+  await Promise.all(Array.from(byLoc.values()).map(async ({ ll, items }) => {
+    const fc = await getForecast(ll);
+    if (myToken !== fillWeatherToken || !fc) return;
+    for (const it of items) {
+      const el = document.getElementById(it.elId);
+      if (!el) continue;
+      const w = readForecast(fc, it.date, it.time);
+      const txt = weatherPillText(w);
+      if (txt) {
+        el.textContent = txt;
+        el.title = weatherPillTitle(w);
+        el.style.display = "";
+      } else {
+        el.style.display = "none";
+      }
+    }
+  }));
 }
 
 function initActivityDragDrop(START_HOUR, HOUR_PX) {
@@ -409,6 +449,7 @@ function openActivityDetail(dayIdx, actId, ev) {
         ${act.time ? `<div class="detail-meta-time">🕒 ${escapeHtml(act.time)} · ${durTxt}</div>` : ""}
       </div>
       <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
+      <div class="detail-weather" id="dp-weather"></div>
       <div class="detail-share-desc">
         ${act.shareDescription
           ? escapeHtml(act.shareDescription).replace(/\n/g, "<br>")
@@ -416,6 +457,9 @@ function openActivityDetail(dayIdx, actId, ev) {
       </div>
     `;
     setTimeout(() => initDetailMap(act.latLng), 50);
+    // Safe to show: the visitor's coordinates are blurred by ±2 km, which is
+    // far below the resolution of a forecast — no location is given away.
+    fillDetailWeather(dayIdx, act);
     showDetailPanel();
     return;
   }
@@ -441,6 +485,9 @@ function openActivityDetail(dayIdx, actId, ev) {
       <div class="geocode-status" id="dp-geo">${act.latLng ? '<span class="geocode-ok">✓ Localisé</span>' : ""}</div>
     </label>
     <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
+    <div class="detail-label">Météo prévue
+      <div class="detail-weather" id="dp-weather"></div>
+    </div>
     <label class="detail-label">Notes privées
       <textarea id="dp-desc" placeholder="Notes, lien…">${escapeHtml(act.description || "")}</textarea>
     </label>
@@ -485,6 +532,7 @@ function openActivityDetail(dayIdx, actId, ev) {
       const geo = document.getElementById("dp-geo");
       if (geo) geo.innerHTML = ll ? '<span class="geocode-ok">✓ Localisé</span>' : "";
       updateDetailMap(ll);
+      if (a) fillDetailWeather(dayIdx, a);
     });
   });
   document.getElementById("dp-desc").addEventListener("input", (e) => {
@@ -497,7 +545,59 @@ function openActivityDetail(dayIdx, actId, ev) {
     updateActivity(dayIdx, actId, "shareDescription", e.target.value);
   });
   setTimeout(() => initDetailMap(act.latLng), 50);
+  fillDetailWeather(dayIdx, act);
   showDetailPanel();
+}
+
+// Fills #dp-weather for one activity. Bails out if the panel moved on to
+// another activity while the request was in flight.
+async function fillDetailWeather(dayIdx, act) {
+  const el = document.getElementById("dp-weather");
+  if (!el) return;
+  const trip = computeTripDates();
+  const date = trip && trip.dates[dayIdx];
+  if (!date) {
+    el.innerHTML = '<span class="detail-weather-empty">Renseigne tes vols pour dater le voyage.</span>';
+    return;
+  }
+  if (!act.latLng) {
+    el.innerHTML = '<span class="detail-weather-empty">Renseigne un lieu pour voir la météo.</span>';
+    return;
+  }
+  el.innerHTML = '<span class="detail-weather-empty">⌛ Météo…</span>';
+
+  const fc = await getForecast(act.latLng);
+  if (!currentDetail || currentDetail.type !== "act" || currentDetail.id !== act.id) return;
+  const box = document.getElementById("dp-weather");
+  if (!box) return;
+  if (!fc) {
+    box.innerHTML = '<span class="detail-weather-empty">Météo indisponible pour le moment.</span>';
+    return;
+  }
+
+  const w = readForecast(fc, date, act.time);
+  if (!w || w.outOfRange) {
+    box.innerHTML = `<span class="detail-weather-empty">Prévision indisponible au-delà de ${WEATHER_MAX_DAYS} jours.</span>`;
+    return;
+  }
+  const temp = w.daily
+    ? `${Math.round(w.tmin)}° / ${Math.round(w.tmax)}°`
+    : formatTemp(w.temp);
+  const when = w.daily
+    ? '<span class="detail-weather-when">sur la journée</span>'
+    : `<span class="detail-weather-when">à ${escapeHtml(w.hour)}</span>`;
+  const precip = w.precip == null || isNaN(w.precip)
+    ? ""
+    : `<div class="detail-weather-precip">Risque de précipitations ${Math.round(w.precip)} %</div>`;
+  box.innerHTML = `
+    <div class="detail-weather-card">
+      <span class="detail-weather-icon">${w.icon}</span>
+      <div>
+        <div class="detail-weather-temp">${temp} ${when}</div>
+        <div class="detail-weather-label">${escapeHtml(w.label)}</div>
+        ${precip}
+      </div>
+    </div>`;
 }
 
 let detailMap = null;

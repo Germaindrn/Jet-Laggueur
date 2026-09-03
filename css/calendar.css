@@ -308,6 +308,16 @@ body.hide-travel .cal-evt-travel {
   white-space: nowrap;
 }
 
+/* Weather pill. .evt-compact clips it on short bubbles, so a 30-minute
+   activity keeps showing its name alone rather than being squeezed. */
+.evt-weather {
+  font-size: 0.7rem;
+  color: var(--text);
+  opacity: 0.72;
+  white-space: nowrap;
+  line-height: 1.15;
+}
+
 .cal-evt-night {
   background: color-mix(in srgb, var(--navy-light) 14%, transparent);
   border-left: 3px solid var(--navy-light);

@@ -128,6 +128,58 @@
   border-top: 1px solid var(--sand);
 }
 
+/* ==================== WEATHER (Open-Meteo) ==================== */
+
+.detail-weather {
+  margin-top: 5px;
+  font-weight: 400;
+}
+
+.detail-weather-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--cream);
+  border-left: 3px solid var(--gold);
+  border-radius: 4px;
+}
+
+.detail-weather-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.detail-weather-temp {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.detail-weather-when {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.detail-weather-label {
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.detail-weather-precip {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.detail-weather-empty {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
+  font-style: italic;
+}
+
 .detail-map-wrap {
   margin-bottom: 14px;
   border-radius: 8px;
