@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="css/map.css">
   <link rel="stylesheet" href="css/calendar.css">
   <link rel="stylesheet" href="css/detail.css">
+  <link rel="stylesheet" href="css/readonly.css">
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="css/home.css">
 </head>
@@ -28,6 +29,7 @@
   <div class="header-actions">
     <button class="btn btn-ghost btn-sm header-trip-only" onclick="openHome()" title="Retour à l'accueil">🏠 Voyages</button>
     <input type="text" id="trip-title-input" class="header-trip-only" placeholder="Nom du voyage…" value="Mon Voyage">
+    <button id="mode-btn" class="btn btn-ghost btn-sm header-trip-only mode-btn" hidden onclick="toggleEditMode()"></button>
     <button id="cloud-pill" class="cloud-pill header-trip-only" hidden onclick="openCloudShare(currentTripId)"></button>
     <select id="theme-select" class="theme-select" onchange="setTheme(this.value)" title="Thème"></select>
   </div>
@@ -53,6 +55,9 @@
 
 <div class="main-content">
   <button class="island-handle" onclick="toggleIsland()" aria-label="Réduire / Agrandir le panneau"><span class="island-grip"></span></button>
+  <section class="timeline-section" aria-label="Programme du voyage">
+    <div id="timeline"></div>
+  </section>
   <details class="section section-collapsible" id="tab-jours" open>
     <summary class="section-header">
       <div class="icon">📅</div>
@@ -151,6 +156,8 @@
 <script src="js/sync.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/visitor.js"></script>
+<script src="js/readonly.js"></script>
+<script src="js/timeline.js"></script>
 <script src="js/init.js"></script>
 </body>
 </html>

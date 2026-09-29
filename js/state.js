@@ -80,6 +80,8 @@ function getTripState(id) {
 }
 
 function saveAll() {
+  // `state` is then a masked copy of the trip (role "surpris"): never save it.
+  if (typeof isSurpriseView === "function" && isSurpriseView()) return;
   const trip = allTrips.find((t) => t.id === currentTripId);
   if (trip) {
     trip.state = state;
@@ -188,6 +190,7 @@ function switchTrip(id) {
   state = getTripState(currentTripId);
   localStorage.setItem("voyageplanner_current", String(currentTripId));
   focusedDay = null;
+  editMode = false; // every trip opens read-only, even for its admins
   setView("trip");
   restoreUI();
   if (typeof syncCheckRemote === "function") syncCheckRemote();
@@ -212,6 +215,7 @@ function createTrip() {
   state = newState;
   ensureFlights();
   saveAll();
+  editMode = true; // nothing to read yet
   setView("trip");
   restoreUI();
 }

@@ -1,12 +1,325 @@
-@media (max-width: 900px) {
+/* Responsive: tablet (≤1024px) + phone (≤600px). */
+
+/* ==================== TABLET (≤1024px) ==================== */
+
+@media (max-width: 1024px) {
 
   .app-header {
+    padding: 16px 22px;
+    gap: 12px;
     flex-wrap: wrap;
-    padding: 14px 18px;
+  }
+
+  .app-header .logo {
+    font-size: 1.3rem;
+  }
+
+  .app-header .logo-icon {
+    height: 38px !important;
+    width: 38px !important;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  #trip-title-input {
+    width: 180px;
+    font-size: 1rem;
   }
 
   .main-content {
-    padding: 18px 14px;
+    padding: 22px 18px 60px;
+  }
+
+  .calendar-meta {
+    gap: 10px;
+    padding: 10px 14px;
+  }
+
+  .cal-zoom-range {
+    width: 80px;
+  }
+
+  .toggle-travel {
+    margin-left: 0;
+  }
+
+  .detail-panel {
+    width: 320px;
+  }
+
+  body.detail-open .main-content {
+    margin-left: 348px;
+  }
+
+  .home-trip-list {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .calendar-grid {
+    --cal-day-w: 180px;
+  }
+
+}
+
+/* ==================== PHONE (≤600px) ==================== */
+
+@media (max-width: 600px) {
+
+  /* HEADER */
+
+  .app-header {
+    padding: 12px 14px;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .app-header .logo {
+    font-size: 1.15rem;
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .app-header .logo-icon {
+    height: 34px !important;
+    width: 34px !important;
+  }
+
+  .header-actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .header-actions .btn-sm {
+    padding: 6px 10px;
+    font-size: 0.72rem;
+  }
+
+  #trip-title-input {
+    width: 100%;
+    order: 99;
+    font-size: 0.95rem;
+    padding: 4px 6px;
+  }
+
+  .theme-select {
+    font-size: 0.7rem;
+    height: 32px;
+  }
+
+  /* HOME */
+
+  #home-screen {
+    padding: 86px 14px 32px;
+  }
+
+  .home-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .home-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .home-actions {
+    gap: 8px;
+  }
+
+  .home-actions .btn {
+    flex: 1 1 calc(50% - 4px);
+    padding: 10px 12px;
+    font-size: 0.82rem;
+  }
+
+  .home-trip-list {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .trip-card {
+    padding: 16px 16px 14px;
+  }
+
+  .trip-card-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .trip-card-actions .btn-open {
+    flex: 1 1 calc(50% - 4px);
+    padding: 8px 6px;
+    font-size: 0.78rem;
+  }
+
+  .trip-card-actions .trip-card-icon {
+    padding: 6px 10px;
+    font-size: 0.95rem;
+  }
+
+  /* MAIN */
+
+  .main-content {
+    margin-top: 50vh;
+    padding: 22px 14px 50px;
+    border-radius: 14px 14px 0 0;
+  }
+
+  body.island-collapsed .main-content {
+    transform: translateY(calc(100vh - 50vh - 44px));
+  }
+
+  .section-header {
+    padding: 12px 16px;
+  }
+
+  .section-body {
+    padding: 14px 14px;
+  }
+
+  /* CALENDAR */
+
+  .calendar-meta {
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: 0.78rem;
+  }
+
+  .cal-zoom-range {
+    width: 70px;
+  }
+
+  .cal-zoom {
+    padding: 3px 6px;
+    gap: 4px;
+  }
+
+  .cal-zoom-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 0.85rem;
+  }
+
+  .toggle-travel {
+    margin-left: 0;
+    font-size: 0.74rem;
+  }
+
+  .calendar-grid {
+    --cal-day-w: 150px;
+  }
+
+  .cal-day-head {
+    height: 56px;
+    padding: 8px 6px;
+  }
+
+  /* DETAIL PANEL (bottom sheet) */
+
+  .detail-panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto !important;
+    width: 100%;
+    max-height: 86vh;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(100%);
+    box-shadow: 0 -8px 32px rgba(26, 39, 68, 0.28);
+  }
+
+  .detail-panel.open {
+    transform: translateY(0);
+  }
+
+  body.detail-open .main-content {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 1200px;
+  }
+
+  .detail-panel-header {
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .detail-panel-body {
+    padding: 16px;
+  }
+
+  .detail-map {
+    height: 160px;
+  }
+
+  /* MODAL */
+
+  .modal {
+    max-height: 92vh;
+    border-radius: 12px;
+  }
+
+  .modal-header {
+    padding: 12px 14px;
+  }
+
+  .modal-header h3 {
+    font-size: 0.95rem;
+  }
+
+  .modal-body {
+    padding: 14px;
+  }
+
+  .modal-actions .btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  /* MAP */
+
+  .map-info {
+    font-size: 0.7rem;
+    padding: 8px 10px;
+  }
+
+  /* FLIGHTS */
+
+  #flights-list {
+    font-size: 0.85rem;
+  }
+
+  /* ITINERARY */
+
+  .itinerary-actions a.btn {
+    padding: 12px 10px;
+    font-size: 0.86rem;
+  }
+
+}
+
+/* ==================== SMALL PHONE (≤380px) ==================== */
+
+@media (max-width: 380px) {
+
+  .header-actions .btn-sm {
+    padding: 5px 8px;
+    font-size: 0.68rem;
+  }
+
+  .home-actions .btn,
+  .trip-card-actions .btn-open {
+    flex: 1 1 100%;
+  }
+
+  .calendar-grid {
+    --cal-day-w: 130px;
   }
 
 }

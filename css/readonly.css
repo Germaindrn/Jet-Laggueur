@@ -1,0 +1,448 @@
+/* Read-only mode (default) vs "Gérer", current-time line, itinerary, device
+   roles, and the vertical timeline shown on phones in read-only. */
+
+/* ==================== READ-ONLY: hide or freeze editing UI ==================== */
+
+body.readonly .cal-add-btn-wrap,
+body.readonly .evt-resize-handle,
+body.readonly .detail-actions {
+  display: none !important;
+}
+
+body.readonly .cal-evt-act,
+body.readonly .cal-evt-night {
+  cursor: pointer;
+}
+
+body.readonly #trip-title-input {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+body.readonly #flights-list input,
+body.readonly #flights-list select {
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+body.readonly .ap-dropdown {
+  display: none !important;
+}
+
+.mode-btn.mode-locked {
+  opacity: 0.75;
+}
+
+.detail-meta-place {
+  margin-top: 4px;
+  font-size: 0.88rem;
+}
+
+/* ==================== CURRENT-TIME LINE (calendar grid) ==================== */
+
+.cal-now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid #e74c3c;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.cal-now-line::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e74c3c;
+}
+
+.cal-now-line::after {
+  content: attr(data-time);
+  position: absolute;
+  right: 4px;
+  top: -8px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  line-height: 1.2;
+}
+
+.cal-day.day-today .cal-day-num {
+  background: #e74c3c;
+  color: #fff;
+}
+
+/* ==================== ITINERARY ==================== */
+
+.itinerary-btn {
+  width: 100%;
+  margin: 8px 0 12px;
+  padding: 11px 14px;
+  background: var(--navy);
+  color: var(--cream);
+  border: none;
+  border-radius: 8px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.itinerary-btn:hover {
+  background: var(--navy-light);
+}
+
+.itinerary-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.itinerary-actions a.btn {
+  flex: 1 1 calc(50% - 5px);
+  text-align: center;
+  text-decoration: none;
+  padding: 14px;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.itinerary-actions a.btn-maps { background: #4285f4; }
+.itinerary-actions a.btn-waze { background: #1ab2e5; }
+
+/* ==================== DEVICES (share modal) ==================== */
+
+.cloud-devices-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 16px;
+  font-size: 0.85rem;
+}
+
+.cloud-devices-head a {
+  font-size: 0.75rem;
+  color: var(--gold);
+}
+
+.cloud-devices {
+  margin-top: 6px;
+  border: 1px solid var(--sand);
+  border-radius: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.cloud-device {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--sand);
+}
+
+.cloud-device:last-child { border-bottom: none; }
+.cloud-device.me { background: var(--cream); }
+.cloud-device-info { flex: 1; min-width: 0; }
+.cloud-device-name { font-size: 0.88rem; color: var(--text); overflow-wrap: anywhere; }
+.cloud-device-meta { font-size: 0.74rem; color: var(--muted); }
+
+/* ==================== TIMELINE (phones, read-only) ==================== */
+
+.timeline-section { display: none; }
+
+.tl-hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 4px 4px 14px;
+}
+
+.tl-day {
+  margin-bottom: 18px;
+  scroll-margin-top: calc(var(--app-header-h, 70px) + 8px);
+}
+
+.tl-day-head {
+  position: sticky;
+  top: var(--app-header-h, 70px);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 0 -4px 10px;
+  background: var(--navy);
+  color: var(--cream);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.tl-day-num {
+  background: var(--gold);
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.tl-day.today .tl-day-num { background: #e74c3c; color: #fff; }
+
+.tl-day-date {
+  flex: 1;
+  font-family: "Playfair Display", serif;
+  font-size: 1.1rem;
+}
+
+.tl-today {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gold-light);
+}
+
+.tl-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+/* The rail: time column is 54px, rail sits just right of it. */
+.tl-items::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 62px;
+  width: 2px;
+  background: var(--sand);
+}
+
+.tl-item {
+  position: relative;
+  display: flex;
+  gap: 22px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.tl-time {
+  flex: 0 0 54px;
+  text-align: right;
+  padding-top: 11px;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.tl-time strong { display: block; font-weight: 700; }
+.tl-time span { display: block; font-size: 0.78rem; color: var(--muted); }
+
+.tl-card {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  background: var(--white);
+  border-radius: 12px;
+  padding: 11px 14px 12px;
+  box-shadow: 0 2px 10px rgba(26, 39, 68, 0.08);
+  border-left: 4px solid var(--act-color, var(--gold));
+}
+
+/* Dot on the rail. */
+.tl-card::before {
+  content: "";
+  position: absolute;
+  left: -21px;
+  top: 14px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--act-color, var(--gold));
+  box-shadow: 0 0 0 3px var(--cream);
+}
+
+.tl-flight .tl-card { border-left-color: var(--navy-light); }
+.tl-flight .tl-card::before { background: var(--navy-light); }
+.tl-night .tl-card { border-left-color: var(--muted); background: var(--cream); }
+.tl-night .tl-card::before { background: var(--muted); }
+
+.tl-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.tl-sub {
+  margin-top: 3px;
+  font-size: 0.88rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.tl-notes {
+  margin-top: 6px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text);
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tl-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tl-foot:empty { display: none; }
+
+.tl-wx {
+  font-size: 0.86rem;
+  color: var(--text);
+  background: var(--cream);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.tl-go {
+  margin-left: auto;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: var(--navy);
+  color: var(--cream);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tl-travel {
+  margin: -2px 0 8px 76px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.tl-free {
+  margin: 0 0 10px 76px;
+  font-size: 0.92rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.tl-item.past { opacity: 0.55; }
+
+.tl-now {
+  position: relative;
+  margin: 2px 0 12px 56px;
+  border-top: 2px solid #e74c3c;
+}
+
+.tl-now::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: -7px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e74c3c;
+}
+
+.tl-now span {
+  position: absolute;
+  right: 0;
+  top: -11px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Phones in read-only: the timeline replaces the grid, flights and routes
+   sections, and the map leaves more room to the programme. */
+@media (max-width: 760px) {
+  body.readonly .timeline-section { display: block; }
+  body.readonly #tab-jours,
+  body.readonly #flights-section,
+  body.readonly #trips-section { display: none; }
+  body.readonly .main-content {
+    margin-top: 40vh;
+    padding: 20px 12px 60px;
+  }
+  body.readonly.island-collapsed .main-content {
+    transform: translateY(calc(100vh - 40vh - 44px));
+  }
+}
+
+/* ==================== "VISIBLE PAR LES SURPRIS" (edit forms) ==================== */
+
+.detail-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-label .surprise-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 400;
+  font-size: 0.74rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.detail-label .surprise-toggle input {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.detail-alt {
+  margin-top: -6px;
+  padding-left: 10px;
+  border-left: 3px solid var(--gold);
+}
+
+.detail-alt[hidden] { display: none; }
+
+/* Role picker in the device list */
+.cloud-role-select {
+  font-size: 0.8rem;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--sand);
+  background: var(--white);
+  color: var(--text);
+}
+
+.cloud-role-tag {
+  font-size: 0.76rem;
+  color: var(--muted);
+}

@@ -106,7 +106,7 @@ async function updateMap() {
     }
 
     // Activities — markers gated by toggle, route always traces through them
-    const visitor = typeof isVisitorMode === "function" && isVisitorMode();
+    const visitor = isSurpriseView();
     day.activities.forEach((act, j) => {
       if (!act.latLng) return;
       const label = visitor
@@ -132,7 +132,7 @@ async function updateMap() {
       const label = "Nuit";
       if (showNights) {
         const nightPopup = visitor
-          ? `🌙 Nuit ${i + 1}${day.nightShareDescription ? "<br><small>" + escapeHtml(day.nightShareDescription) + "</small>" : ""}`
+          ? `🌙 Nuit ${i + 1}${day.nightLocation ? ": " + escapeHtml(day.nightLocation) : ""}${day.nightShareDescription ? "<br><small>" + escapeHtml(day.nightShareDescription) + "</small>" : ""}`
           : `🌙 Nuit ${i + 1}: ${escapeHtml(day.nightLocation || "")}${day.nightDescription ? "<br><small>" + escapeHtml(day.nightDescription) + "</small>" : ""}`;
         pts.push({
           latlng: day.nightLatLng,
@@ -336,7 +336,7 @@ function drawStraightRoutes(pts) {
 }
 
 async function drawRoutes(pts) {
-  if (typeof isVisitorMode === "function" && isVisitorMode()) {
+  if (isSurpriseView()) {
     return drawStraightRoutes(pts);
   }
   const infos = [];

@@ -19,11 +19,11 @@ function loadQrLib() {
   return qrLibPromise;
 }
 
-function randomOffsetLatLng(latLng) {
+function randomOffsetLatLng(latLng, rand = Math.random) {
   if (!latLng || latLng.length !== 2) return null;
   const [lat, lng] = latLng;
-  const r = Math.sqrt(Math.random()) * VISITOR_RADIUS_KM;
-  const theta = Math.random() * 2 * Math.PI;
+  const r = Math.sqrt(rand()) * VISITOR_RADIUS_KM;
+  const theta = rand() * 2 * Math.PI;
   const dLat = (r / 111.32) * Math.cos(theta);
   const cosLat = Math.cos((lat * Math.PI) / 180) || 1e-6;
   const dLng = (r / (111.32 * cosLat)) * Math.sin(theta);
@@ -33,17 +33,40 @@ function randomOffsetLatLng(latLng) {
   ];
 }
 
-function buildVisitorTrip(src) {
-  const days = (src.days || []).map((d) => ({
-    nightLatLng: randomOffsetLatLng(d.nightLatLng),
-    nightShareDescription: d.nightShareDescription || "",
+// Seeded generator: the "surpris" role redraws the trip on every change, so
+// each place must land on the same blurred spot every time.
+function seededRand(key) {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  return () => {
+    h = (h + 0x6d2b79f5) | 0;
+    let t = Math.imul(h ^ (h >>> 15), 1 | h);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// What the "surpris" see: the real value when its box is ticked, otherwise
+// the alternative one typed for them.
+function surpriseActName(a) { return (a.nameVisible ? a.name : a.shareName) || ""; }
+function surpriseActDesc(a) { return (a.descVisible ? a.description : a.shareDescription) || ""; }
+function surpriseNightName(d) { return (d.nightNameVisible ? d.nightLocation : d.nightShareName) || ""; }
+function surpriseNightDesc(d) { return (d.nightDescVisible ? d.nightDescription : d.nightShareDescription) || ""; }
+
+// `blur(key, latLng)` lets links draw fresh noise and the live role reuse
+// the same noise per place.
+function buildVisitorTrip(src, blur = (key, ll) => randomOffsetLatLng(ll)) {
+  const days = (src.days || []).map((d, i) => ({
+    nightLatLng: blur("n" + i, d.nightLatLng),
+    nightShareName: surpriseNightName(d),
+    nightShareDescription: surpriseNightDesc(d),
     activities: (d.activities || []).map((a) => ({
       id: a.id,
       time: a.time || "",
       durationMin: Number(a.durationMin) || 60,
-      latLng: randomOffsetLatLng(a.latLng),
-      shareName: a.shareName || "",
-      shareDescription: a.shareDescription || "",
+      latLng: blur("a" + a.id, a.latLng),
+      shareName: surpriseActName(a),
+      shareDescription: surpriseActDesc(a),
       color: a.color || null,
     })),
   }));
@@ -88,8 +111,7 @@ function b64urlDecode(str) {
 
 function buildVisitorUrl(payload) {
   const data = b64urlEncode(JSON.stringify(payload));
-  const base = location.origin + location.pathname;
-  return base + "#v=" + data;
+  return shareBaseUrl() + "#v=" + data;
 }
 
 function openVisitorShare() {
@@ -100,7 +122,7 @@ function openVisitorShare() {
   document.getElementById("modal-title").textContent = "Partager (mode visiteur)";
   document.getElementById("modal-body").innerHTML = `
     <p class="modal-hint">Lien lecture seule, lieux floutés (±${VISITOR_RADIUS_KM} km), noms d'activités cachés.
-    Renseigne les champs "Nom partagé" et "Description partagée" sur chaque activité pour donner des indices aux visiteurs.</p>
+    Sur chaque activité, coche « Visible par les surpris » pour montrer le vrai nom ou la vraie description, ou saisis une autre version pour eux.</p>
     <textarea id="visitor-url" readonly>${escapeHtml(url)}</textarea>
     <div class="modal-actions">
       <button class="btn btn-gold btn-sm" onclick="copyVisitorUrl()">📋 Copier le lien</button>
@@ -195,29 +217,41 @@ function isVisitorMode() {
   return /^#v=/.test(location.hash || "");
 }
 
+function visitorTripToState(trip) {
+  return {
+    title: trip.title || "Voyage visiteur",
+    numDays: trip.numDays || (trip.days || []).length || 1,
+    flights: trip.flights || [],
+    days: (trip.days || []).map((d) => ({
+      nightLocation: d.nightShareName || "",
+      nightLatLng: d.nightLatLng || null,
+      nightDescription: "",
+      nightShareDescription: d.nightShareDescription || "",
+      activities: (d.activities || []).map((a) => ({
+        id: a.id || Date.now() + Math.random(),
+        time: a.time || "",
+        durationMin: Number(a.durationMin) || 60,
+        name: "",
+        place: "",
+        latLng: a.latLng || null,
+        description: "",
+        shareName: a.shareName || "",
+        shareDescription: a.shareDescription || "",
+        color: a.color || null,
+      })),
+    })),
+  };
+}
+
 function applyVisitorTripToState(trip) {
   Object.keys(state).forEach((k) => delete state[k]);
-  state.title = trip.title || "Voyage visiteur";
-  state.numDays = trip.numDays || (trip.days || []).length || 1;
-  state.flights = trip.flights || [];
-  state.days = (trip.days || []).map((d) => ({
-    nightLocation: "",
-    nightLatLng: d.nightLatLng || null,
-    nightDescription: "",
-    nightShareDescription: d.nightShareDescription || "",
-    activities: (d.activities || []).map((a) => ({
-      id: a.id || Date.now() + Math.random(),
-      time: a.time || "",
-      durationMin: Number(a.durationMin) || 60,
-      name: "",
-      place: "",
-      latLng: a.latLng || null,
-      description: "",
-      shareName: a.shareName || "",
-      shareDescription: a.shareDescription || "",
-      color: a.color || null,
-    })),
-  }));
+  Object.assign(state, visitorTripToState(trip));
+}
+
+// Masked copy shown to the "surpris" role of a shared trip; never saved.
+function buildSurpriseState(src, seed) {
+  const blur = (key, ll) => randomOffsetLatLng(ll, seededRand(seed + ":" + key));
+  return visitorTripToState(buildVisitorTrip(src, blur).trip);
 }
 
 function activateVisitorMode() {

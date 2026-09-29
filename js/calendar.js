@@ -64,6 +64,7 @@ function renderCalendar() {
   const meta = document.getElementById("cal-meta-info");
   const metaBox = document.querySelector(".calendar-meta");
   const trip = computeTripDates();
+  if (typeof renderTimeline === "function") renderTimeline();
 
   if (!trip) {
     metaBox.style.display = "flex";
@@ -123,7 +124,7 @@ function renderCalendar() {
     }
 
     // Activities
-    const visitorCal = typeof isVisitorMode === "function" && isVisitorMode();
+    const visitorCal = isSurpriseView();
     day.activities.forEach((act, j) => {
       const top = timeToPos(act.time, START_HOUR, HOUR_PX);
       const dur = Number(act.durationMin) || 60;
@@ -190,6 +191,7 @@ function renderCalendar() {
 
   initActivityDragDrop(START_HOUR, HOUR_PX);
   initCalendarClickToCreate(START_HOUR, HOUR_PX);
+  renderNowLine();
 
   // Async: fill in travel times, then the weather pills
   fillTravelTimes(trip);
@@ -237,7 +239,7 @@ async function fillWeather(trip) {
 function initActivityDragDrop(START_HOUR, HOUR_PX) {
   const grid = document.getElementById("calendar-grid");
   if (!grid) return;
-  if (typeof isVisitorMode === "function" && isVisitorMode()) {
+  if (isReadOnly()) {
     grid.querySelectorAll(".cal-evt-act").forEach((evt) => {
       evt.addEventListener("click", (e) => {
         openActivityDetail(Number(evt.dataset.day), Number(evt.dataset.id), e);
@@ -438,7 +440,7 @@ function openActivityDetail(dayIdx, actId, ev) {
   const body = document.getElementById("detail-body");
   const title = document.getElementById("detail-title");
   title.textContent = `Jour ${dayIdx + 1} · Activité`;
-  if (typeof isVisitorMode === "function" && isVisitorMode()) {
+  if (isSurpriseView()) {
     const dur = Number(act.durationMin) || 60;
     const durTxt = dur >= 60
       ? `${Math.floor(dur / 60)}h${dur % 60 ? String(dur % 60).padStart(2, "0") : ""}`
@@ -463,6 +465,27 @@ function openActivityDetail(dayIdx, actId, ev) {
     showDetailPanel();
     return;
   }
+  if (isReadOnly()) {
+    const dur = Number(act.durationMin) || 60;
+    const durTxt = dur >= 60
+      ? `${Math.floor(dur / 60)}h${dur % 60 ? String(dur % 60).padStart(2, "0") : ""}`
+      : `${dur} min`;
+    if (act.name) title.textContent = `Jour ${dayIdx + 1} · ${act.name}`;
+    body.innerHTML = `
+      <div class="detail-meta">
+        ${act.time ? `<div class="detail-meta-time">🕒 ${escapeHtml(act.time)} · ${durTxt}</div>` : ""}
+        ${act.place ? `<div class="detail-meta-place">📍 ${escapeHtml(act.place)}</div>` : ""}
+      </div>
+      <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
+      ${itineraryBtnHtml(act.latLng, act.name || act.place)}
+      <div class="detail-weather" id="dp-weather"></div>
+      ${act.description ? `<div class="detail-share-desc">${escapeHtml(act.description).replace(/\n/g, "<br>")}</div>` : ""}
+    `;
+    setTimeout(() => initDetailMap(act.latLng), 50);
+    fillDetailWeather(dayIdx, act);
+    showDetailPanel();
+    return;
+  }
   const swatches = ACTIVITY_COLORS.map((c) => {
     const selected = (act.color || "") === c.value ? " selected" : "";
     const isDefault = c.value === "";
@@ -471,8 +494,12 @@ function openActivityDetail(dayIdx, actId, ev) {
     return `<button type="button" class="${cls}${selected}" data-color="${c.value}" title="${c.name}" aria-label="${c.name}"${styleAttr}></button>`;
   }).join("");
   body.innerHTML = `
-    <label class="detail-label">Nom
+    <div class="detail-label">
+      <div class="detail-label-row"><span>Nom</span>${surpriseToggleHtml("dp-name-vis", act.nameVisible)}</div>
       <input type="text" id="dp-name" placeholder="Activité" value="${escapeAttr(act.name || "")}">
+    </div>
+    <label class="detail-label detail-alt" id="dp-share-name-wrap" ${act.nameVisible ? "hidden" : ""}>Nom vu par les surpris
+      <input type="text" id="dp-share-name" placeholder="Indice, surprise…" value="${escapeAttr(act.shareName || "")}">
     </label>
     <label class="detail-label">Durée (minutes)
       <input type="number" id="dp-duration" min="15" step="15" value="${Number(act.durationMin) || 60}">
@@ -485,16 +512,15 @@ function openActivityDetail(dayIdx, actId, ev) {
       <div class="geocode-status" id="dp-geo">${act.latLng ? '<span class="geocode-ok">✓ Localisé</span>' : ""}</div>
     </label>
     <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
+    ${itineraryBtnHtml(act.latLng, act.name || act.place)}
     <div class="detail-label">Météo prévue
       <div class="detail-weather" id="dp-weather"></div>
     </div>
-    <label class="detail-label">Notes privées
+    <div class="detail-label">
+      <div class="detail-label-row"><span>Description</span>${surpriseToggleHtml("dp-desc-vis", act.descVisible)}</div>
       <textarea id="dp-desc" placeholder="Notes, lien…">${escapeHtml(act.description || "")}</textarea>
-    </label>
-    <label class="detail-label">Nom partagé <span class="detail-hint">(visible en mode visiteur)</span>
-      <input type="text" id="dp-share-name" placeholder="Indice, surprise…" value="${escapeAttr(act.shareName || "")}">
-    </label>
-    <label class="detail-label">Description partagée <span class="detail-hint">(visible en mode visiteur)</span>
+    </div>
+    <label class="detail-label detail-alt" id="dp-share-desc-wrap" ${act.descVisible ? "hidden" : ""}>Description vue par les surpris
       <textarea id="dp-share-desc" placeholder="Indice, énigme, ambiance…">${escapeHtml(act.shareDescription || "")}</textarea>
     </label>
     <div class="detail-actions">
@@ -544,6 +570,8 @@ function openActivityDetail(dayIdx, actId, ev) {
   document.getElementById("dp-share-desc").addEventListener("input", (e) => {
     updateActivity(dayIdx, actId, "shareDescription", e.target.value);
   });
+  bindSurpriseToggle("dp-name-vis", "dp-share-name-wrap", (on) => updateActivity(dayIdx, actId, "nameVisible", on));
+  bindSurpriseToggle("dp-desc-vis", "dp-share-desc-wrap", (on) => updateActivity(dayIdx, actId, "descVisible", on));
   setTimeout(() => initDetailMap(act.latLng), 50);
   fillDetailWeather(dayIdx, act);
   showDetailPanel();
@@ -629,6 +657,23 @@ function updateDetailMap(latLng) {
   }
 }
 
+// "Visible par les surpris": ticked, the surprise roles and visitor links
+// see the real value; unticked, a field below takes the one meant for them.
+function surpriseToggleHtml(id, checked) {
+  return `<label class="surprise-toggle" title="Cochée : les surpris voient ce champ tel quel. Décochée : tu leur donnes une autre version.">
+    <input type="checkbox" id="${id}" ${checked ? "checked" : ""}> 🎁 Visible par les surpris</label>`;
+}
+
+function bindSurpriseToggle(checkboxId, altWrapId, onChange) {
+  const cb = document.getElementById(checkboxId);
+  if (!cb) return;
+  cb.addEventListener("change", () => {
+    const wrap = document.getElementById(altWrapId);
+    if (wrap) wrap.hidden = cb.checked;
+    onChange(cb.checked);
+  });
+}
+
 function openNightDetail(dayIdx, ev) {
   if (ev) ev.stopPropagation();
   const day = state.days[dayIdx];
@@ -637,7 +682,8 @@ function openNightDetail(dayIdx, ev) {
   const body = document.getElementById("detail-body");
   const title = document.getElementById("detail-title");
   title.textContent = `Jour ${dayIdx + 1} · Hébergement`;
-  if (typeof isVisitorMode === "function" && isVisitorMode()) {
+  if (isSurpriseView()) {
+    if (day.nightLocation) title.textContent = `Jour ${dayIdx + 1} · ${day.nightLocation}`;
     body.innerHTML = `
       <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
       <div class="detail-share-desc">
@@ -650,16 +696,35 @@ function openNightDetail(dayIdx, ev) {
     showDetailPanel();
     return;
   }
+  if (isReadOnly()) {
+    if (day.nightLocation) title.textContent = `Jour ${dayIdx + 1} · ${day.nightLocation}`;
+    body.innerHTML = `
+      <div class="detail-meta">
+        <div class="detail-meta-place">🛏 ${escapeHtml(day.nightLocation || "Hébergement non renseigné")}</div>
+      </div>
+      <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
+      ${itineraryBtnHtml(day.nightLatLng, day.nightLocation)}
+      ${day.nightDescription ? `<div class="detail-share-desc">${escapeHtml(day.nightDescription).replace(/\n/g, "<br>")}</div>` : ""}
+    `;
+    setTimeout(() => initDetailMap(day.nightLatLng), 50);
+    showDetailPanel();
+    return;
+  }
   body.innerHTML = `
-    <label class="detail-label">Hôtel, Airbnb…
+    <div class="detail-label">
+      <div class="detail-label-row"><span>Hôtel, Airbnb…</span>${surpriseToggleHtml("dp-night-name-vis", day.nightNameVisible)}</div>
       <input type="text" id="dp-night-place" value="${escapeAttr(day.nightLocation || "")}">
       <div class="geocode-status" id="dp-night-geo">${day.nightLatLng ? '<span class="geocode-ok">✓ Localisé</span>' : ""}</div>
+    </div>
+    <label class="detail-label detail-alt" id="dp-night-share-name-wrap" ${day.nightNameVisible ? "hidden" : ""}>Nom vu par les surpris
+      <input type="text" id="dp-night-share-name" placeholder="Hébergement" value="${escapeAttr(day.nightShareName || "")}">
     </label>
     <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
-    <label class="detail-label">Notes privées / lien booking
+    <div class="detail-label">
+      <div class="detail-label-row"><span>Notes / lien booking</span>${surpriseToggleHtml("dp-night-desc-vis", day.nightDescVisible)}</div>
       <textarea id="dp-night-desc">${escapeHtml(day.nightDescription || "")}</textarea>
-    </label>
-    <label class="detail-label">Description partagée <span class="detail-hint">(visible en mode visiteur)</span>
+    </div>
+    <label class="detail-label detail-alt" id="dp-night-share-desc-wrap" ${day.nightDescVisible ? "hidden" : ""}>Description vue par les surpris
       <textarea id="dp-night-share-desc" placeholder="Indice, ambiance…">${escapeHtml(day.nightShareDescription || "")}</textarea>
     </label>
   `;
@@ -681,6 +746,11 @@ function openNightDetail(dayIdx, ev) {
   document.getElementById("dp-night-share-desc").addEventListener("input", (e) => {
     updateDayField(dayIdx, "nightShareDescription", e.target.value);
   });
+  document.getElementById("dp-night-share-name").addEventListener("input", (e) => {
+    updateDayField(dayIdx, "nightShareName", e.target.value);
+  });
+  bindSurpriseToggle("dp-night-name-vis", "dp-night-share-name-wrap", (on) => updateDayField(dayIdx, "nightNameVisible", on));
+  bindSurpriseToggle("dp-night-desc-vis", "dp-night-share-desc-wrap", (on) => updateDayField(dayIdx, "nightDescVisible", on));
   showDetailPanel();
 }
 
@@ -725,7 +795,7 @@ document.addEventListener("pointerdown", (e) => {
 });
 
 document.addEventListener("keydown", (e) => {
-  if (typeof isVisitorMode === "function" && isVisitorMode()) return;
+  if (isReadOnly()) return;
   const inField = e.target.matches("input, textarea, select, [contenteditable]");
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
     e.preventDefault();
@@ -750,7 +820,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 function initCalendarClickToCreate(START_HOUR, HOUR_PX) {
-  if (typeof isVisitorMode === "function" && isVisitorMode()) return;
+  if (isReadOnly()) return;
   const SNAP_MIN = 15;
   document.querySelectorAll(".cal-day-body").forEach((body, dayIdx) => {
     body.addEventListener("click", (e) => {
@@ -795,7 +865,7 @@ function travelKey(from, to) {
 }
 
 async function fillTravelTimes(trip) {
-  if (typeof isVisitorMode === "function" && isVisitorMode()) return;
+  if (isSurpriseView()) return; // blurred places: the times would mislead
   const myToken = ++fillTravelToken;
   const destLL = getDestAirportLatLng();
   const HOUR_PX = getCalVZoom();

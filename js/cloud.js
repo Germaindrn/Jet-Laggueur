@@ -44,6 +44,72 @@ function cloudSaveDbInput(value) {
   return true;
 }
 
+// ---------- Device identity ----------
+// Roles are per device: /trips/<id>/devices/<deviceId> is written on every
+// connection, /trips/<id>/roles/<deviceId> gives its role (none = "surpris").
+// Enforced by the interface only, not by the database rules.
+
+const CLOUD_DEVICE_KEY = "voyageplanner_device";
+
+function cloudDevice() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(CLOUD_DEVICE_KEY)); } catch (e) {}
+  if (!d || !d.id) {
+    d = { id: cloudNewId(), name: "" };
+    try { localStorage.setItem(CLOUD_DEVICE_KEY, JSON.stringify(d)); } catch (e) {}
+  }
+  return d;
+}
+
+function cloudGuessDeviceName() {
+  const ua = navigator.userAgent || "";
+  const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iPhone"
+    : /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "Mac" : "Appareil";
+  return os + (isAndroidApp() ? " (app)" : " (navigateur)");
+}
+
+function cloudDeviceName() {
+  return cloudDevice().name || cloudGuessDeviceName();
+}
+
+function cloudSetDeviceName(name) {
+  const d = cloudDevice();
+  d.name = String(name || "").trim().slice(0, 40) || cloudGuessDeviceName();
+  try { localStorage.setItem(CLOUD_DEVICE_KEY, JSON.stringify(d)); } catch (e) {}
+  for (const e of cloudEntries.values()) cloudRegisterDevice(e);
+}
+
+// Asked once, the first time this device shares or joins a trip.
+function cloudEnsureDeviceName() {
+  const d = cloudDevice();
+  if (d.name) return;
+  const name = prompt("Nom de cet appareil (visible par les autres membres du voyage) :", cloudGuessDeviceName());
+  cloudSetDeviceName(name);
+}
+
+function cloudDeviceRecord() {
+  return { name: cloudDeviceName(), platform: isAndroidApp() ? "app" : "web", lastSeen: Date.now() };
+}
+
+// admin: sees everything, can switch to "Gérer" and hand out roles.
+// voyageur: sees everything as it really is, read-only.
+// surpris: sees what is marked for them (shared names, notes, blurred places).
+const CLOUD_ROLES = {
+  admin: { label: "Admin", icon: "✏️" },
+  voyageur: { label: "Voyageur", icon: "👁" },
+  surpris: { label: "Surpris", icon: "🎁" },
+};
+
+// A trip that is not shared is this device's own: admin.
+function cloudRole(trip) {
+  if (!trip || !trip.cloud) return "admin";
+  return CLOUD_ROLES[trip.cloud.role] ? trip.cloud.role : "surpris";
+}
+
+function cloudIsAdmin(trip) {
+  return cloudRole(trip) === "admin";
+}
+
 // ---------- Trip state <-> Firebase tree ----------
 // Firebase drops null and empty values and turns dense integer-keyed objects
 // into arrays, so the encoding sticks to what survives a round trip.
@@ -327,11 +393,17 @@ function cloudSubscribe(trip) {
     error: null,
   };
   cloudEntries.set(id, entry);
-  entry.handler = entry.ref.on(
-    "value",
-    (snap) => cloudOnRemote(entry, snap.val()),
-    (err) => { entry.error = cloudErrorText(err); cloudRenderStatus(); }
-  );
+  const onError = (err) => { entry.error = cloudErrorText(err); cloudRenderStatus(); };
+  entry.handler = entry.ref.on("value", (snap) => cloudOnRemote(entry, snap.val()), onError);
+  const root = cloudDb(host).ref("trips/" + id);
+  entry.rolesRef = root.child("roles");
+  entry.devicesRef = root.child("devices");
+  entry.rolesHandler = entry.rolesRef.on("value", (snap) => cloudOnRoles(entry, snap.val()), onError);
+  entry.devicesHandler = entry.devicesRef.on("value", (snap) => {
+    entry.devices = snap.val() || {};
+    cloudRefreshShareModal(entry.id);
+  }, onError);
+  cloudRegisterDevice(entry);
   cloudWatchConnection(host);
   return entry;
 }
@@ -341,7 +413,50 @@ function cloudUnsubscribe(cloudId) {
   if (!e) return;
   clearTimeout(e.timer);
   e.ref.off("value", e.handler);
+  e.rolesRef.off("value", e.rolesHandler);
+  e.devicesRef.off("value", e.devicesHandler);
   cloudEntries.delete(cloudId);
+}
+
+// "Registered on connection": refreshed every time the trip is subscribed.
+function cloudRegisterDevice(entry) {
+  entry.devicesRef.child(cloudDevice().id).set(cloudDeviceRecord()).catch(() => {});
+}
+
+function cloudOnRoles(entry, roles) {
+  const trip = findCloudTrip(entry.id);
+  if (!trip) return;
+  const me = cloudDevice().id;
+  entry.roles = roles || {};
+  // Trips shared before roles existed have none: the first device back
+  // online becomes admin.
+  if (!roles) { entry.rolesRef.child(me).set("admin").catch(() => {}); return; }
+  const role = CLOUD_ROLES[roles[me]] ? roles[me] : "surpris";
+  if (trip.cloud.role !== role) {
+    trip.cloud.role = role;
+    cloudSaveTrips();
+    if (typeof onRoleChange === "function") onRoleChange(trip);
+  }
+  cloudRefreshShareModal(entry.id);
+}
+
+function cloudAdminIds(entry) {
+  const roles = (entry && entry.roles) || {};
+  return Object.keys(roles).filter((k) => roles[k] === "admin");
+}
+
+function cloudSetRole(cloudId, deviceId, role) {
+  const e = cloudEntries.get(cloudId);
+  if (!e || !CLOUD_ROLES[role]) return;
+  const admins = cloudAdminIds(e);
+  if (role !== "admin" && admins.length === 1 && admins[0] === deviceId) {
+    setCloudStatus("⚠ Il faut garder au moins un admin");
+    cloudRefreshShareModal(cloudId);
+    return;
+  }
+  // "surpris" is the default, so it is stored as the absence of a role.
+  e.rolesRef.child(deviceId).set(role === "surpris" ? null : role)
+    .catch((err) => setCloudStatus("⚠ " + cloudErrorText(err)));
 }
 
 function cloudWatchConnection(host) {
@@ -358,9 +473,10 @@ function cloudOnRemote(entry, raw) {
   if (!trip) { cloudUnsubscribe(entry.id); return; }
   const remote = cloudFlatten(raw);
   const local = cloudFlatten(encodeTripState(trip.state));
+  const admin = cloudIsAdmin(trip);
   let merged;
-  if (!raw) merged = local; // wiped online: this device puts it back
-  else if (!entry.base) merged = cloudCanonical(remote); // no common history: the shared copy wins
+  if (!raw) merged = local; // wiped online: an admin puts it back
+  else if (!entry.base || !admin) merged = cloudCanonical(remote); // the shared copy wins
   else merged = cloudCanonical(cloudMerge3(entry.base, local, remote));
   entry.live = true;
   entry.remote = remote;
@@ -369,7 +485,7 @@ function cloudOnRemote(entry, raw) {
   // would take the unsent edits for already-synced ones.
   if (!entry.pending) cloudStoreBase(entry.id, remote);
   if (!cloudSameFlat(merged, local)) cloudApplyToLocal(trip, merged);
-  const ops = entry.error ? null : cloudBuildUpdate(remote, merged);
+  const ops = entry.error || !admin ? null : cloudBuildUpdate(remote, merged);
   if (ops) cloudWrite(entry, ops);
   cloudRenderStatus();
 }
@@ -406,7 +522,7 @@ function cloudPushLocal(entry) {
   entry.timer = null;
   const trip = findCloudTrip(entry.id);
   // Not live yet: the first snapshot merges these edits in.
-  if (trip && entry.live && !entry.error) {
+  if (trip && entry.live && !entry.error && cloudIsAdmin(trip)) {
     const ops = cloudBuildUpdate(entry.remote, cloudFlatten(encodeTripState(trip.state)));
     if (ops) cloudWrite(entry, ops);
   }
@@ -436,6 +552,7 @@ function cloudApplyToLocal(trip, flat) {
   trip.updatedAt = Date.now();
   if (isCurrent) {
     state = next;
+    if (typeof syncViewState === "function") syncViewState();
     ensureFlights();
     // The undo stack (`history` in state.js) holds snapshots without the
     // other device's edits: undoing would push their removal.
@@ -525,8 +642,7 @@ function cloudShareCode(trip) {
 }
 
 function cloudShareUrl(trip) {
-  if (!/^https?:$/.test(location.protocol)) return null;
-  return location.origin + location.pathname + "#join=" + cloudShareCode(trip);
+  return shareBaseUrl() + "#join=" + cloudShareCode(trip);
 }
 
 // Accepts a full link or the bare "host/id" code.
@@ -590,7 +706,8 @@ function openCloudShare(idArg) {
     const host = getCloudConfig().db || "";
     body.innerHTML = `
       <p class="modal-hint">« ${escapeHtml(trip.title || "Voyage")} » sera mis en ligne sur ta base Firebase.
-      Toute personne qui a le lien pourra le voir et le modifier, et chaque modif apparaîtra en direct sur tous les appareils.</p>
+      Toute personne qui a le lien pourra le suivre en direct, d'abord en <strong>surpris</strong>
+      (noms et descriptions partagés, lieux floutés). Tu seras admin et tu choisiras le rôle de chaque appareil.</p>
       <label style="display:block;margin-top:8px;">URL de la base Firebase</label>
       <input type="text" id="cloud-share-db" value="${escapeHtml(host ? "https://" + host : "")}"
         placeholder="https://mon-projet-default-rtdb.europe-west1.firebasedatabase.app"
@@ -605,33 +722,90 @@ function openCloudShare(idArg) {
   }
   const url = cloudShareUrl(trip);
   const code = cloudShareCode(trip);
+  const role = {
+    admin: "Tu es <strong>admin</strong> : tu peux modifier ce voyage (bouton ✏️ Gérer) et choisir le rôle de chaque appareil.",
+    voyageur: "Tu es <strong>voyageur</strong> : tu vois tout le voyage, en lecture seule.",
+    surpris: "Tu es <strong>surpris</strong> : tu vois ce qui est partagé avec toi, les lieux sont approximatifs.",
+  }[cloudRole(trip)];
   body.innerHTML = `
-    <p class="modal-hint">Envoie ce lien : en l'ouvrant, on retrouve le voyage et on le modifie à plusieurs, en direct.
-    Garde-le pour toi et tes amis, il donne accès en écriture.</p>
-    <textarea id="cloud-share-link" readonly style="min-height:70px;word-break:break-all;">${escapeHtml(url || code)}</textarea>
-    ${url ? `<p class="modal-hint" style="font-size:11px;margin-top:6px;">Code (à coller dans ☁ Sync → Firebase → Rejoindre) : <code>${escapeHtml(code)}</code></p>` : ""}
+    <p class="modal-hint">${role}</p>
+    <p class="modal-hint">Envoie ce lien : en l'ouvrant, on suit le voyage en direct. Chaque appareil qui l'ouvre
+    apparaît dans la liste ci-dessous en <strong>surpris</strong>, jusqu'à ce qu'un admin change son rôle
+    (<strong>voyageur</strong> : voit tout ; <strong>admin</strong> : peut aussi modifier).</p>
+    <textarea id="cloud-share-link" readonly style="min-height:70px;word-break:break-all;">${escapeHtml(url)}</textarea>
+    <p class="modal-hint" style="font-size:11px;margin-top:6px;">Code (à coller dans ☁ Sync → Firebase → Rejoindre) : <code>${escapeHtml(code)}</code></p>
     <div class="modal-actions">
       <button class="btn btn-gold btn-sm" onclick="copyCloudLink()">📋 Copier</button>
       <button class="btn btn-gold btn-sm" onclick="shareCloudLink()">📤 Partager</button>
       <button class="btn btn-ghost btn-sm" onclick="cloudStopShare(${trip.id})">Arrêter sur cet appareil</button>
     </div>
-    ${url ? `<div class="visitor-qr-wrap"><div id="cloud-qr" class="visitor-qr"></div>
-      <div class="visitor-qr-caption">Scanne avec un téléphone</div></div>` : ""}
+    <div class="cloud-devices-head">
+      <strong>Appareils</strong>
+      <a href="#" onclick="cloudRenameFromModal();return false;">Renommer cet appareil</a>
+    </div>
+    <div id="cloud-devices" class="cloud-devices">${cloudDevicesHtml(trip)}</div>
+    <div class="visitor-qr-wrap"><div id="cloud-qr" class="visitor-qr"></div>
+      <div class="visitor-qr-caption">Scanne avec un téléphone</div></div>
     <div id="cloud-status" class="modal-status"></div>
   `;
+  cloudShareModalTrip = trip.id;
   showModal();
-  if (url) {
-    loadQrLib().then((qrcode) => {
-      const q = qrcode(0, "L");
-      q.addData(url);
-      q.make();
-      const el = document.getElementById("cloud-qr");
-      if (el) el.innerHTML = q.createSvgTag({ scalable: true });
-    }).catch(() => {
-      const el = document.getElementById("cloud-qr");
-      if (el) { el.classList.add("disabled"); el.textContent = "QR indisponible (hors-ligne ?)"; }
-    });
-  }
+  loadQrLib().then((qrcode) => {
+    const q = qrcode(0, "L");
+    q.addData(url);
+    q.make();
+    const el = document.getElementById("cloud-qr");
+    if (el) el.innerHTML = q.createSvgTag({ scalable: true });
+  }).catch(() => {
+    const el = document.getElementById("cloud-qr");
+    if (el) { el.classList.add("disabled"); el.textContent = "QR indisponible (hors-ligne ?)"; }
+  });
+}
+
+let cloudShareModalTrip = null;
+
+function cloudDevicesHtml(trip) {
+  const e = trip.cloud && cloudEntries.get(trip.cloud.id);
+  if (!e || !e.devices) return '<p class="modal-hint">Liste disponible une fois en ligne.</p>';
+  const me = cloudDevice().id;
+  const roles = e.roles || {};
+  const canManage = cloudIsAdmin(trip);
+  const order = { admin: 0, voyageur: 1, surpris: 2 };
+  const rows = Object.keys(e.devices)
+    .map((id) => ({ ...e.devices[id], id, role: CLOUD_ROLES[roles[id]] ? roles[id] : "surpris" }))
+    .sort((a, b) => (order[a.role] - order[b.role]) || ((b.lastSeen || 0) - (a.lastSeen || 0)));
+  if (!rows.length) return '<p class="modal-hint">Aucun appareil enregistré.</p>';
+  return rows.map((d) => {
+    const seen = d.id === me ? "cet appareil" : (d.lastSeen ? "vu " + formatRelative(d.lastSeen) : "");
+    const control = canManage
+      ? `<select class="cloud-role-select" onchange="cloudSetRole('${trip.cloud.id}','${escapeAttr(d.id)}',this.value)">
+          ${Object.keys(CLOUD_ROLES).map((r) => `<option value="${r}" ${r === d.role ? "selected" : ""}>${CLOUD_ROLES[r].label}</option>`).join("")}
+        </select>`
+      : `<span class="cloud-role-tag">${CLOUD_ROLES[d.role].label}</span>`;
+    return `<div class="cloud-device${d.id === me ? " me" : ""}">
+      <div class="cloud-device-info">
+        <div class="cloud-device-name">${d.platform === "app" ? "📱" : "🌐"} ${escapeHtml(d.name || "Appareil")}</div>
+        <div class="cloud-device-meta">${escapeHtml(seen)}</div>
+      </div>
+      ${control}
+    </div>`;
+  }).join("");
+}
+
+// Live refresh of the device list while the share modal shows that trip.
+function cloudRefreshShareModal(cloudId) {
+  const el = document.getElementById("cloud-devices");
+  const overlay = document.getElementById("modal-overlay");
+  if (!el || !overlay || !overlay.classList.contains("open")) return;
+  const trip = allTrips.find((t) => t.id === cloudShareModalTrip);
+  if (trip && trip.cloud && trip.cloud.id === cloudId) el.innerHTML = cloudDevicesHtml(trip);
+}
+
+function cloudRenameFromModal() {
+  const name = prompt("Nom de cet appareil :", cloudDeviceName());
+  if (name === null) return;
+  cloudSetDeviceName(name);
+  setCloudStatus("✓ Renommé");
 }
 
 function copyCloudLink() {
@@ -666,16 +840,25 @@ async function cloudEnableShare(idArg) {
   }
   const host = getCloudConfig().db;
   if (!host) { setCloudStatus("⚠ Renseigne l'URL de ta base Firebase"); return; }
+  cloudEnsureDeviceName();
   setCloudStatus("⏳ Mise en ligne…");
   try {
     await loadCloudSdk();
     const id = cloudNewId();
+    const me = cloudDevice().id;
     const tree = encodeTripState(trip.state);
     await cloudWithTimeout(
-      cloudDb(host).ref("trips/" + id).set({ v: 1, localId: trip.id, state: tree }),
+      cloudDb(host).ref("trips/" + id).set({
+        v: 1,
+        localId: trip.id,
+        createdBy: me,
+        roles: { [me]: "admin" },
+        devices: { [me]: cloudDeviceRecord() },
+        state: tree,
+      }),
       "pas de réponse de Firebase (hors ligne ou URL erronée ?)"
     );
-    trip.cloud = { db: host, id };
+    trip.cloud = { db: host, id, role: "admin" };
     cloudStoreBase(id, cloudFlatten(tree));
     cloudSaveTrips();
     cloudSubscribe(trip);
@@ -700,6 +883,7 @@ async function cloudJoin(text) {
   if (!c) throw new Error("Lien ou code invalide");
   let trip = findCloudTrip(c.id);
   if (!trip) {
+    cloudEnsureDeviceName();
     setCloudStatus("⏳ Lecture du voyage…");
     await loadCloudSdk();
     const snap = await cloudWithTimeout(
@@ -727,7 +911,9 @@ async function cloudJoin(text) {
     trip.state = next;
     trip.title = next.title;
     trip.updatedAt = Date.now();
-    trip.cloud = c;
+    // A new device joins as "surpris" unless an admin already gave it a role.
+    const known = node.roles && node.roles[cloudDevice().id];
+    trip.cloud = { ...c, role: CLOUD_ROLES[known] ? known : "surpris" };
     tripSigs.set(trip.id, tripSignature(next));
     cloudStoreBase(c.id, cloudFlatten(node.state));
     cloudSaveTrips();
@@ -751,7 +937,12 @@ function cloudHandleJoinHash() {
 function cloudStopShare(idArg) {
   const trip = allTrips.find((t) => t.id === Number(idArg));
   if (!trip || !trip.cloud) return;
-  if (!confirm("Arrêter la synchro de ce voyage sur cet appareil ?\n\nTa copie locale est gardée, et le voyage reste en ligne pour les autres.")) return;
+  const e = cloudEntries.get(trip.cloud.id);
+  const admins = cloudAdminIds(e);
+  const lastAdmin = cloudIsAdmin(trip) && admins.length === 1 && admins[0] === cloudDevice().id
+    ? "\n\n⚠ Tu es le seul admin : plus personne ne pourra le modifier. Donne d'abord le rôle à un autre appareil."
+    : "";
+  if (!confirm("Arrêter la synchro de ce voyage sur cet appareil ?\n\nTa copie locale est gardée, et le voyage reste en ligne pour les autres." + lastAdmin)) return;
   cloudForget(trip);
   cloudSaveTrips();
   renderHome();

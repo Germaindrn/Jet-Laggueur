@@ -43,6 +43,8 @@ function setView(v) {
 
 function restoreUI() {
   initThemes();
+  syncViewState();
+  applyModeUI();
   adjustHeaderSpacing();
   const show = getShowTravel();
   document.body.classList.toggle("hide-travel", !show);
