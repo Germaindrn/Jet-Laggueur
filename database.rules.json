@@ -1,0 +1,12 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "trips": {
+      "$tripId": {
+        ".read": "$tripId.matches(/^[A-Za-z0-9_-]{20,64}$/)",
+        ".write": "$tripId.matches(/^[A-Za-z0-9_-]{20,64}$/)"
+      }
+    }
+  }
+}

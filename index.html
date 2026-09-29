@@ -28,6 +28,7 @@
   <div class="header-actions">
     <button class="btn btn-ghost btn-sm header-trip-only" onclick="openHome()" title="Retour à l'accueil">🏠 Voyages</button>
     <input type="text" id="trip-title-input" class="header-trip-only" placeholder="Nom du voyage…" value="Mon Voyage">
+    <button id="cloud-pill" class="cloud-pill header-trip-only" hidden onclick="openCloudShare(currentTripId)"></button>
     <select id="theme-select" class="theme-select" onchange="setTheme(this.value)" title="Thème"></select>
   </div>
 </header>
@@ -148,6 +149,7 @@
 <script src="js/calendar.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/sync.js"></script>
+<script src="js/cloud.js"></script>
 <script src="js/visitor.js"></script>
 <script src="js/init.js"></script>
 </body>

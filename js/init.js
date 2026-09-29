@@ -39,4 +39,5 @@ if (isVisitorMode()) {
     initThemes();
   }
   if (typeof syncCheckRemote === "function") syncCheckRemote();
+  if (typeof cloudInit === "function") cloudInit();
 }

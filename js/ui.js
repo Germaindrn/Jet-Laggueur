@@ -66,6 +66,7 @@ function restoreUI() {
   document.title = state.title + " — Jet Laggueur";
   renderFlights();
   renderCalendar();
+  if (typeof cloudRenderStatus === "function") cloudRenderStatus();
   setTimeout(() => map.invalidateSize(), 100);
   updateMap();
 }

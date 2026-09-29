@@ -1,4 +1,5 @@
 // Multi-device sync: backend = JSONBin or Pantry. Merge by updatedAt.
+// Firebase (live, per-trip) is a third choice in the same modal; it lives in cloud.js.
 // No auto-push. On trip switch / app load, silently pulls newer versions of existing trips.
 // Manual pull opens an import picker so the user chooses which remote trips to bring in.
 
@@ -39,8 +40,10 @@ function openSync() {
     <select id="sync-backend" onchange="onSyncBackendChange()" style="width:100%;padding:8px;box-sizing:border-box;">
       <option value="jsonbin" ${cfg.backend === "jsonbin" ? "selected" : ""}>JSONBin.io</option>
       <option value="pantry" ${cfg.backend === "pantry" ? "selected" : ""}>Pantry</option>
+      <option value="firebase" ${cfg.backend === "firebase" ? "selected" : ""}>Firebase (temps réel)</option>
     </select>
     <div id="sync-backend-fields">${renderSyncBackendFields(cfg)}</div>
+    <div id="sync-classic" ${cfg.backend === "firebase" ? "hidden" : ""}>
     <div style="margin-top:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <strong>Voyages à partager (envoi)</strong>
@@ -58,17 +61,19 @@ function openSync() {
       <button class="btn btn-gold btn-sm" onclick="syncPush()">⬆ Envoyer</button>
       <button class="btn btn-gold btn-sm" onclick="syncPullPicker()">⬇ Importer…</button>
     </div>
-    <div id="sync-status" class="modal-status"></div>
     <p class="modal-hint" style="margin-top:10px;font-size:11px;opacity:.7;">
       Les versions plus récentes des voyages déjà présents sont récupérées automatiquement à l'ouverture.
       Les suppressions ne se propagent pas.
     </p>
+    </div>
+    <div id="sync-status" class="modal-status"></div>
   `;
   showModal();
 }
 
 function renderSyncBackendFields(cfg) {
   cfg = cfg || getSyncConfig();
+  if (cfg.backend === "firebase") return renderCloudSyncFields();
   if (cfg.backend === "pantry") {
     return `
       <p class="modal-hint" style="margin-top:8px;font-size:11px;">
@@ -96,6 +101,7 @@ function renderSyncBackendFields(cfg) {
 function onSyncBackendChange() {
   const cfg = readSyncInputs();
   document.getElementById("sync-backend-fields").innerHTML = renderSyncBackendFields(cfg);
+  document.getElementById("sync-classic").hidden = cfg.backend === "firebase";
 }
 
 function renderSyncTripList(cfg) {
@@ -155,6 +161,7 @@ function tripsToShare(cfg) {
 }
 
 function validateBackendCfg(cfg) {
+  if (cfg.backend === "firebase") return "⚠ Firebase se synchronise en direct, sans envoi ni import";
   if (cfg.backend === "jsonbin") {
     if (!cfg.binId) return "⚠ Renseigne un Bin ID";
     if (!cfg.apiKey) return "⚠ Renseigne une Master Key";
@@ -345,6 +352,8 @@ let _syncCheckLastAt = 0;
 let _syncCheckInFlight = false;
 async function syncCheckRemote() {
   const cfg = getSyncConfig();
+  // Picking Firebase in the modal must not stop the JSONBin / Pantry refresh.
+  if (cfg.backend === "firebase") cfg.backend = cfg.pantryId && !cfg.binId ? "pantry" : "jsonbin";
   if (validateBackendCfg(cfg)) return;
   if (_syncCheckInFlight) return;
   if (Date.now() - _syncCheckLastAt < 15000) return;

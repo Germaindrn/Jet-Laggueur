@@ -123,3 +123,21 @@ body {
 .tab-content.active {
   display: block;
 }
+
+/* Live sync state of the open trip (Firebase), see cloud.js */
+.cloud-pill {
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: var(--cream);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cloud-pill[hidden] { display: none; }
+.cloud-pill.cloud-ok { border-color: var(--success); }
+.cloud-pill.cloud-busy { border-color: var(--gold); }
+.cloud-pill.cloud-off { opacity: 0.7; }
+.cloud-pill.cloud-err { border-color: var(--danger); }

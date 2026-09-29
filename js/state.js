@@ -88,6 +88,7 @@ function saveAll() {
     if (sig === null || sig !== tripSigs.get(trip.id)) {
       trip.updatedAt = Date.now();
       tripSigs.set(trip.id, sig);
+      if (typeof cloudNoteLocalChange === "function") cloudNoteLocalChange(trip);
     }
   }
   try {
@@ -160,11 +161,13 @@ function renderHome() {
       <div class="trip-card-meta">
         <span>${days} jour${days > 1 ? "s" : ""}</span>
         ${updated ? `<span class="dot">·</span><span>${updated}</span>` : ""}
+        ${t.cloud ? '<span class="dot">·</span><span class="cloud-badge" title="Synchronisé en temps réel (Firebase)">☁ partagé</span>' : ""}
       </div>
       <div class="trip-card-actions" onclick="event.stopPropagation()">
         <button class="btn btn-gold btn-sm btn-open" onclick="openTrip(${t.id})">Ouvrir</button>
         <button class="trip-card-icon" title="Exporter" onclick="exportTripFromHome(${t.id})">↗</button>
         <button class="trip-card-icon" title="Partager (visiteur)" onclick="shareTripFromHome(${t.id})">👥</button>
+        <button class="trip-card-icon" title="Partager en temps réel (Firebase)" onclick="openCloudShare(${t.id})">🔗</button>
         <button class="trip-card-icon danger" title="Supprimer" onclick="deleteTrip(${t.id})">✕</button>
       </div>
     </article>`;
@@ -218,7 +221,9 @@ function deleteTrip(idArg) {
   const trip = allTrips.find((t) => t.id === id);
   if (!trip) return;
   if (allTrips.length <= 1) { alert("Tu dois garder au moins un voyage."); return; }
-  if (!confirm(`Supprimer le voyage « ${trip.title || "Voyage"} » ?`)) return;
+  const cloudNote = trip.cloud ? "\n\nIl reste en ligne pour les personnes avec qui il est partagé." : "";
+  if (!confirm(`Supprimer le voyage « ${trip.title || "Voyage"} » ?${cloudNote}`)) return;
+  if (typeof cloudForget === "function") cloudForget(trip);
   allTrips = allTrips.filter((t) => t.id !== id);
   if (currentTripId === id) {
     currentTripId = allTrips[0].id;
