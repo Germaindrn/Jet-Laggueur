@@ -80,10 +80,12 @@ function getTripState(id) {
 }
 
 function saveAll() {
-  // `state` is then a masked copy of the trip (role "surpris"): never save it.
-  if (typeof isSurpriseView === "function" && isSurpriseView()) return;
   const trip = allTrips.find((t) => t.id === currentTripId);
-  if (trip) {
+  // Only admins write `state` back: for "surpris" it is a masked copy, and
+  // for any non-admin a stray edit must not land in the stored trip. The
+  // trip list itself (deletions, imports) is still saved.
+  const canWrite = typeof canManageTrip !== "function" || canManageTrip();
+  if (trip && canWrite) {
     trip.state = state;
     trip.title = state.title;
     const sig = tripSignature(state);

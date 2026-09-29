@@ -428,9 +428,13 @@ function cloudOnRoles(entry, roles) {
   if (!trip) return;
   const me = cloudDevice().id;
   entry.roles = roles || {};
-  // Trips shared before roles existed have none: the first device back
-  // online becomes admin.
-  if (!roles) { entry.rolesRef.child(me).set("admin").catch(() => {}); return; }
+  // Trips shared before roles existed have none. Only a device linked back
+  // then (no role stored locally, i.e. the sharer or an early joiner) takes
+  // admin; one joining now stays "surpris" and waits for that device.
+  if (!roles) {
+    if (trip.cloud.role === undefined) entry.rolesRef.child(me).set("admin").catch(() => {});
+    return;
+  }
   const role = CLOUD_ROLES[roles[me]] ? roles[me] : "surpris";
   if (trip.cloud.role !== role) {
     trip.cloud.role = role;
