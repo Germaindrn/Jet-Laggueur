@@ -102,7 +102,7 @@ async function updateMap() {
 
     // First day: airport is first waypoint
     if (isFirstDay && destLL) {
-      routePts.push({ latlng: destLL, label: destCode || "✈" });
+      routePts.push({ latlng: destLL, label: destCode || "✈", exact: true });
     }
 
     // Activities — markers gated by toggle, route always traces through them
@@ -124,7 +124,7 @@ async function updateMap() {
           popup: popupText,
         });
       }
-      routePts.push({ latlng: act.latLng, label, dayIdx: i });
+      routePts.push({ latlng: act.latLng, label, dayIdx: i, exact: placeShown(act) });
     });
 
     // Night location (not on last day) — same logic: marker gated, route always
@@ -142,12 +142,12 @@ async function updateMap() {
           popup: nightPopup,
         });
       }
-      routePts.push({ latlng: day.nightLatLng, label, dayIdx: i });
+      routePts.push({ latlng: day.nightLatLng, label, dayIdx: i, exact: nightPlaceShown(day) });
     }
 
     // Last day: airport is last waypoint
     if (isLastDay && destLL) {
-      routePts.push({ latlng: destLL, label: destCode || "✈" });
+      routePts.push({ latlng: destLL, label: destCode || "✈", exact: true });
     }
   });
 
@@ -316,35 +316,34 @@ function drawCachedSegment(from, to, cached) {
   return `<b>${from.label} → ${to.label}</b>: ${cached.km} km — ${cached.h > 0 ? cached.h + "h " : ""}${cached.m}min`;
 }
 
-function drawStraightRoutes(pts) {
+// A plain line between two points, when one of them is blurred (surprise
+// view): a road route to an approximate spot would be made up.
+function drawStraightSegment(from, to) {
   const routeColor = getComputedStyle(document.documentElement).getPropertyValue("--gold").trim() || "#c9a84c";
-  const info = document.getElementById("map-info");
-  for (let i = 0; i < pts.length - 1; i++) {
-    const from = pts[i];
-    const to = pts[i + 1];
-    const poly = L.polyline([from.latlng, to.latlng], {
-      color: routeColor,
-      weight: 3,
-      opacity: 0.8,
-      dashArray: "6,4",
-    }).addTo(map);
-    poly._dayIdx = to.dayIdx != null ? to.dayIdx : from.dayIdx;
-    routePolylines.push(poly);
-  }
-  if (info) info.innerHTML = "🗺️ Itinéraire (mode visiteur)";
-  applyDayHighlight();
+  const poly = L.polyline([from.latlng, to.latlng], {
+    color: routeColor,
+    weight: 3,
+    opacity: 0.8,
+    dashArray: "6,4",
+  }).addTo(map);
+  poly._dayIdx = to.dayIdx != null ? to.dayIdx : from.dayIdx;
+  routePolylines.push(poly);
+  return `<b>${escapeHtml(from.label)} → ${escapeHtml(to.label)}</b>: lieu approximatif`;
 }
 
 async function drawRoutes(pts) {
-  if (!showsRealPlaces()) {
-    return drawStraightRoutes(pts);
-  }
   const infos = [];
-  // First pass: draw cached segments instantly
+  // First pass: draw cached segments instantly; segments with a blurred end
+  // (surprise view) stay a straight line.
   const segments = [];
   for (let i = 0; i < pts.length - 1; i++) {
     const from = pts[i];
     const to = pts[i + 1];
+    if (from.exact === false || to.exact === false) {
+      infos.push(drawStraightSegment(from, to));
+      segments.push(null);
+      continue;
+    }
     const key = routeCacheKey(from.latlng, to.latlng);
     const cached = routeCache[key];
     if (cached) {

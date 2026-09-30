@@ -157,7 +157,7 @@ function renderTimeline() {
   }
   if (trip) {
     fillTimelineWeather(trip, myToken);
-    if (showsRealPlaces()) fillTimelineTravel(trip, myToken);
+    fillTimelineTravel(trip, myToken);
   }
 }
 
@@ -223,22 +223,23 @@ async function fillTimelineWeather(trip, myToken) {
 async function fillTimelineTravel(trip, myToken) {
   const destLL = getDestAirportLatLng();
   let prev = null;
+  let prevExact = false;
   for (let i = 0; i < trip.n; i++) {
     const day = state.days[i];
     if (!day) continue;
     const flights = getFlightsOn(trip.dates[i]);
-    if (flights.some((f) => f.ev === "arrive") && destLL) prev = destLL;
+    if (flights.some((f) => f.ev === "arrive") && destLL) { prev = destLL; prevExact = true; }
     const wps = [];
     day.activities.forEach((act) => {
-      if (act.latLng) wps.push({ time: act.time || "00:00", ll: act.latLng, elId: `tl-tr-${i}-${act.id}` });
+      if (act.latLng) wps.push({ time: act.time || "00:00", ll: act.latLng, exact: placeShown(act), elId: `tl-tr-${i}-${act.id}` });
     });
     if (!flights.some((f) => f.ev === "depart") && day.nightLatLng) {
-      wps.push({ time: "21:00", ll: day.nightLatLng, elId: `tl-tr-${i}-night` });
+      wps.push({ time: "21:00", ll: day.nightLatLng, exact: nightPlaceShown(day), elId: `tl-tr-${i}-night` });
     }
     wps.sort((a, b) => a.time.localeCompare(b.time));
     for (const wp of wps) {
       if (myToken !== timelineToken) return;
-      if (prev) {
+      if (prev && prevExact && wp.exact) {
         const key = travelKey(prev, wp.ll);
         let info = travelCache[key];
         if (!info) {
@@ -253,6 +254,7 @@ async function fillTimelineTravel(trip, myToken) {
         }
       }
       prev = wp.ll;
+      prevExact = wp.exact;
     }
   }
 }

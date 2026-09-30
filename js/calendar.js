@@ -939,13 +939,15 @@ function travelKey(from, to) {
   return `${from[0].toFixed(4)},${from[1].toFixed(4)}|${to[0].toFixed(4)},${to[1].toFixed(4)}`;
 }
 
+// Surprise view: only between two exact places; a blurred end would give
+// a wrong time.
 async function fillTravelTimes(trip) {
-  if (!showsRealPlaces()) return; // blurred places: the times would mislead
   const myToken = ++fillTravelToken;
   const destLL = getDestAirportLatLng();
   const HOUR_PX = getCalVZoom();
   const pxPerMin = HOUR_PX / 60;
   let prev = null;
+  let prevExact = false;
 
   for (let i = 0; i < trip.n; i++) {
     if (myToken !== fillTravelToken) return;
@@ -955,7 +957,7 @@ async function fillTravelTimes(trip) {
     const hasArrive = flights.some((f) => f.ev === "arrive");
     const hasDepart = flights.some((f) => f.ev === "depart");
 
-    if (hasArrive && destLL) prev = destLL;
+    if (hasArrive && destLL) { prev = destLL; prevExact = true; }
 
     const wps = [];
     day.activities.forEach((act) => {
@@ -963,6 +965,7 @@ async function fillTravelTimes(trip) {
         wps.push({
           time: act.time || "00:00",
           ll: act.latLng,
+          exact: placeShown(act),
           elId: `travel-act-${act.id}`,
         });
       }
@@ -971,6 +974,7 @@ async function fillTravelTimes(trip) {
       wps.push({
         time: "21:00",
         ll: day.nightLatLng,
+        exact: nightPlaceShown(day),
         elId: `travel-night-${i}`,
       });
     }
@@ -979,7 +983,7 @@ async function fillTravelTimes(trip) {
     for (const wp of wps) {
       if (myToken !== fillTravelToken) return;
       const el = document.getElementById(wp.elId);
-      if (el && prev) {
+      if (el && prev && prevExact && wp.exact) {
         const key = travelKey(prev, wp.ll);
         let info = travelCache[key];
         if (!info) {
@@ -1003,6 +1007,7 @@ async function fillTravelTimes(trip) {
         el.style.display = "none";
       }
       prev = wp.ll;
+      prevExact = wp.exact;
     }
   }
 }
