@@ -132,7 +132,10 @@ function renderCalendar() {
       const to = f.toCode?.toUpperCase() || "?";
       const toAp = AP[to];
       const top = timeToPos(f.arriveTime, START_HOUR, HOUR_PX);
-      events += `<div class="cal-evt cal-evt-flight" style="top:${top}px">
+      // The card ends at the landing time (it sits above it), unless that
+      // would push it over the day header, just after midnight.
+      const arriveCls = top >= 48 ? " cal-evt-arrive" : "";
+      events += `<div class="cal-evt cal-evt-flight${arriveCls}" style="top:${top}px">
         <div class="evt-time">${f.arriveTime || ""}</div>
         <div class="evt-title">✈ Arrivée ${toAp ? toAp.c : to}</div>
         <div class="evt-sub">${f.flightNum || ""}</div>

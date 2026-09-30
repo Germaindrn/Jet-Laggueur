@@ -563,3 +563,8 @@ body.hide-travel .cal-evt-travel {
 }
 
 body.readonly .cal-day-night.empty { cursor: default; }
+
+/* Arrival: the bottom of the card is the landing time. */
+.cal-evt-flight.cal-evt-arrive {
+  transform: translateY(-100%);
+}
