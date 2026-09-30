@@ -795,14 +795,26 @@ function cloudDevicesHtml(trip) {
   return rows.map((d) => {
     const seen = d.id === me ? "cet appareil" : (d.lastSeen ? "vu " + formatRelative(d.lastSeen) : "");
     const other = d.id !== me;
-    const control = canManage && other
-      ? `<select class="cloud-role-select" onchange="cloudSetRole('${trip.cloud.id}','${escapeAttr(d.id)}',this.value)">
+    const cid = trip.cloud.id;
+    const did = escapeAttr(d.id);
+    let control;
+    if (canManage && other && cloudRemoveAsk === d.id) {
+      // ✕ was pressed: remove from the list, or block for good.
+      control = `<span class="cloud-device-ask">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="cloudForgetDevice('${cid}','${did}')" title="Il garde le voyage et réapparaît s'il se reconnecte">Retirer de la liste</button>
+          <button type="button" class="btn btn-danger btn-sm" onclick="cloudBlockDevice('${cid}','${did}')" title="Il perd le voyage et ne peut plus le rejoindre">Bloquer</button>
+          <button type="button" class="cloud-device-remove" onclick="cloudAskRemove(null)" aria-label="Annuler">↩</button>
+        </span>`;
+    } else if (canManage && other) {
+      control = `<select class="cloud-role-select" onchange="cloudSetRole('${cid}','${did}',this.value)">
           ${Object.keys(CLOUD_ROLES).map((r) => `<option value="${r}" ${r === d.role ? "selected" : ""}>${CLOUD_ROLES[r].label}</option>`).join("")}
         </select>
-        <button type="button" class="cloud-device-remove" title="Retirer cet appareil du voyage" aria-label="Retirer"
-          onclick="cloudRemoveDevice('${trip.cloud.id}','${escapeAttr(d.id)}')">✕</button>`
-      : `<span class="cloud-role-tag">${CLOUD_ROLES[d.role].label}</span>`;
-    return `<div class="cloud-device${other ? "" : " me"}">
+        <button type="button" class="cloud-device-remove" title="Retirer ou bloquer cet appareil" aria-label="Retirer"
+          onclick="cloudAskRemove('${did}')">✕</button>`;
+    } else {
+      control = `<span class="cloud-role-tag">${CLOUD_ROLES[d.role].label}</span>`;
+    }
+    return `<div class="cloud-device${other ? "" : " me"}${cloudRemoveAsk === d.id ? " asking" : ""}">
       <div class="cloud-device-info">
         <div class="cloud-device-name">${d.platform === "app" ? "📱" : "🌐"} ${escapeHtml(d.name || "Appareil")}</div>
         <div class="cloud-device-meta">${escapeHtml(seen)}</div>
@@ -812,26 +824,53 @@ function cloudDevicesHtml(trip) {
   }).join("") + cloudRemovedHtml(trip, e, canManage);
 }
 
-// Devices an admin removed: listed apart, and can be let back in.
+// Blocked devices (stored under removed/): listed apart, can be unblocked.
 function cloudRemovedHtml(trip, e, canManage) {
   const removed = e.removed || {};
   const ids = Object.keys(removed);
   if (!ids.length) return "";
-  return `<div class="cloud-removed-head">Retirés</div>` + ids.map((id) => `<div class="cloud-device removed">
+  return `<div class="cloud-removed-head">Bloqués</div>` + ids.map((id) => `<div class="cloud-device removed">
       <div class="cloud-device-info">
         <div class="cloud-device-name">${escapeHtml((removed[id] && removed[id].name) || "Appareil")}</div>
-        <div class="cloud-device-meta">${removed[id] && removed[id].at ? "retiré " + formatRelative(removed[id].at) : ""}</div>
+        <div class="cloud-device-meta">${removed[id] && removed[id].at ? "bloqué " + formatRelative(removed[id].at) : ""}</div>
       </div>
-      ${canManage ? `<button type="button" class="btn btn-ghost btn-sm" onclick="cloudRestoreDevice('${trip.cloud.id}','${escapeAttr(id)}')">Réautoriser</button>` : ""}
+      ${canManage ? `<button type="button" class="btn btn-ghost btn-sm" onclick="cloudRestoreDevice('${trip.cloud.id}','${escapeAttr(id)}')">Débloquer</button>` : ""}
     </div>`).join("");
 }
 
-function cloudRemoveDevice(cloudId, deviceId) {
+// Device whose ✕ was pressed, waiting for "retirer" / "bloquer".
+let cloudRemoveAsk = null;
+
+function cloudAskRemove(deviceId) {
+  cloudRemoveAsk = deviceId;
+  const trip = allTrips.find((t) => t.id === cloudShareModalTrip);
+  if (trip && trip.cloud) cloudRefreshShareModal(trip.cloud.id);
+}
+
+function cloudCanRemove(cloudId, deviceId) {
   const e = cloudEntries.get(cloudId);
   const trip = findCloudTrip(cloudId);
-  if (!e || !trip || !cloudIsAdmin(trip) || deviceId === cloudDevice().id) return;
-  const name = (e.devices && e.devices[deviceId] && e.devices[deviceId].name) || "cet appareil";
-  if (!confirm(`Retirer « ${name} » du voyage ?\n\nIl ne le verra plus et ne pourra plus le rejoindre, sauf si un admin le réautorise.`)) return;
+  return e && trip && cloudIsAdmin(trip) && deviceId !== cloudDevice().id ? e : null;
+}
+
+// Off the list and back to "surpris"; it keeps the trip, and shows up
+// again the next time it connects.
+function cloudForgetDevice(cloudId, deviceId) {
+  const e = cloudCanRemove(cloudId, deviceId);
+  cloudRemoveAsk = null;
+  if (!e) return;
+  e.rootRef.update({
+    ["devices/" + deviceId]: null,
+    ["roles/" + deviceId]: null,
+  }).catch((err) => setCloudStatus("⚠ " + cloudErrorText(err)));
+}
+
+// Loses the trip and cannot join again until unblocked.
+function cloudBlockDevice(cloudId, deviceId) {
+  const e = cloudCanRemove(cloudId, deviceId);
+  cloudRemoveAsk = null;
+  if (!e) return;
+  const name = (e.devices && e.devices[deviceId] && e.devices[deviceId].name) || "Appareil";
   e.rootRef.update({
     ["removed/" + deviceId]: { name, at: Date.now() },
     ["devices/" + deviceId]: null,
@@ -846,7 +885,7 @@ function cloudRestoreDevice(cloudId, deviceId) {
   e.removedRef.child(deviceId).set(null).catch((err) => setCloudStatus("⚠ " + cloudErrorText(err)));
 }
 
-// This device was removed by an admin: stop syncing and drop its copy.
+// This device was blocked by an admin: stop syncing and drop its copy.
 function cloudRemovedHere(entry) {
   const trip = findCloudTrip(entry.id);
   cloudUnsubscribe(entry.id);
@@ -868,7 +907,7 @@ function cloudRemovedHere(entry) {
   try { localStorage.setItem("voyageplanner_current", String(currentTripId)); } catch (e) {}
   if (wasOpen && currentView === "trip") openHome();
   else renderHome();
-  alert(`Un admin t'a retiré du voyage « ${trip.title || "Voyage"} ». Il a été supprimé de cet appareil.`);
+  alert(`Un admin t'a bloqué sur le voyage « ${trip.title || "Voyage"} ». Il a été supprimé de cet appareil.`);
 }
 
 // Live refresh of the device list while the share modal shows that trip.
@@ -971,7 +1010,7 @@ async function cloudJoin(text) {
     ).catch((e) => { throw new Error(cloudErrorText(e)); });
     const node = snap.val();
     if (!node || !node.state) throw new Error("Voyage introuvable");
-    if (node.removed && node.removed[cloudDevice().id]) throw new Error("un admin t'a retiré de ce voyage");
+    if (node.removed && node.removed[cloudDevice().id]) throw new Error("un admin t'a bloqué sur ce voyage");
     const next = decodeTripState(node.state);
     // Same trip already here without live sync (a JSONBin copy, say).
     trip = allTrips.find((t) => t.id === Number(node.localId) && !t.cloud) || null;
