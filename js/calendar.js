@@ -904,6 +904,27 @@ function initCalendarClickToCreate(START_HOUR, HOUR_PX) {
   });
 }
 
+// Tail of a travel block that starts before midnight, drawn at the bottom
+// of day `dayIdx` (nothing before the first day).
+function drawTravelOverflow(dayIdx, px, text, id) {
+  const old = document.getElementById(id);
+  if (old) old.remove();
+  if (dayIdx < 0 || px <= 0) return;
+  const dayEl = document.querySelectorAll("#calendar-grid .cal-day")[dayIdx];
+  const body = dayEl && dayEl.querySelector(".cal-day-body");
+  if (!body) return;
+  const bodyH = parseFloat(body.style.height) || body.offsetHeight;
+  const h = Math.min(px, bodyH);
+  const div = document.createElement("div");
+  div.className = "cal-evt cal-evt-travel cut-bottom";
+  div.id = id;
+  div.style.top = (bodyH - h) + "px";
+  div.style.height = h + "px";
+  div.innerHTML = `<div class="evt-compact"><span class="evt-compact-name travel-text"></span></div>`;
+  div.querySelector(".travel-text").textContent = text;
+  body.appendChild(div);
+}
+
 function minToClock(min) {
   const m = ((Math.round(min) % 1440) + 1440) % 1440;
   return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
@@ -997,11 +1018,17 @@ async function fillTravelTimes(trip) {
         } else if (info) {
           const h = Math.max(16, info.min * pxPerMin);
           const top = Number(el.dataset.activityTop) || 0;
-          el.style.top = Math.max(0, top - h) + "px";
-          el.style.height = h + "px";
-          el.style.display = "";
+          // What does not fit between midnight and the activity spills
+          // onto the bottom of the day before.
+          const inDay = Math.min(h, top);
+          const rest = h - inDay;
+          el.style.top = (top - inDay) + "px";
+          el.style.height = inDay + "px";
+          el.style.display = inDay > 0 ? "" : "none";
+          el.classList.toggle("cut-top", rest > 0);
           const t = el.querySelector(".travel-text");
           if (t) t.textContent = info.text;
+          drawTravelOverflow(i - 1, rest, info.text, el.id + "-over");
         }
       } else if (el && !el.classList.contains("cal-night-travel")) {
         el.style.display = "none";

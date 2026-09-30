@@ -568,3 +568,15 @@ body.readonly .cal-day-night.empty { cursor: default; }
 .cal-evt-flight.cal-evt-arrive {
   transform: translateY(-100%);
 }
+
+/* Travel block crossing midnight: cut edges where it continues. */
+.cal-evt-travel.cut-top {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.cal-evt-travel.cut-bottom {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: 2px dashed var(--gold);
+}
