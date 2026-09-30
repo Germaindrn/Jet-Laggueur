@@ -71,6 +71,18 @@ function getDestAirportCode() {
   return (code && AP[code]) ? code : null;
 }
 
+// Airport of the way home (fromCode of the return flight); the arrival one
+// when it is not set.
+function getDepartAirportCode() {
+  const code = ((state.flights[1] && state.flights[1].fromCode) || "").toUpperCase();
+  return (code && AP[code]) ? code : getDestAirportCode();
+}
+
+function getDepartAirportLatLng() {
+  const code = getDepartAirportCode();
+  return code ? [AP[code].lat, AP[code].lng] : null;
+}
+
 async function updateMap() {
   clearMap();
   const pts = [];
@@ -91,6 +103,18 @@ async function updateMap() {
       isAirport: true,
       layer: MARKER_LAYER.airport,
       popup: `✈ ${destCode} · ${a.c}<br><small>${a.n}</small>`,
+    });
+  }
+  const departCode = getDepartAirportCode();
+  if (departCode && departCode !== destCode) {
+    const a = AP[departCode];
+    pts.push({
+      latlng: [a.lat, a.lng],
+      label: departCode,
+      color: colNavy,
+      isAirport: true,
+      layer: MARKER_LAYER.airport,
+      popup: `✈ ${departCode} · ${a.c}<br><small>${a.n}</small>`,
     });
   }
 
@@ -160,9 +184,10 @@ async function updateMap() {
       routePts.push({ latlng: day.nightLatLng, label, dayIdx: i, exact: nightPlaceShown(day) });
     }
 
-    // Last day: airport is last waypoint
-    if (isLastDay && destLL) {
-      routePts.push({ latlng: destLL, label: destCode || "✈", exact: true });
+    // Last day: the departure airport is the last waypoint
+    const departLL = getDepartAirportLatLng();
+    if (isLastDay && departLL) {
+      routePts.push({ latlng: departLL, label: getDepartAirportCode() || "✈", exact: true });
     }
   });
 

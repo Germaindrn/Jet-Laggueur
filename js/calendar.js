@@ -190,6 +190,10 @@ function renderCalendar() {
       const from = f.fromCode?.toUpperCase() || "?";
       const fromAp = AP[from];
       const top = timeToPos(f.departTime, START_HOUR, HOUR_PX);
+      // Way to the airport, from the last night or activity
+      events += `<div class="cal-evt cal-evt-travel" id="travel-depart-${i}" data-activity-top="${top}" style="top:${top}px;height:0;display:none">
+        <div class="evt-compact"><span class="evt-compact-name travel-text"></span></div>
+      </div>`;
       events += `<div class="cal-evt cal-evt-flight" style="top:${top}px">
         <div class="evt-time">${f.departTime || ""}</div>
         <div class="evt-title">✈ Départ ${fromAp ? fromAp.c : from}</div>
@@ -1005,6 +1009,11 @@ async function fillTravelTimes(trip) {
         exact: nightPlaceShown(day),
         elId: `travel-night-${i}`,
       });
+    }
+    const departLL = hasDepart && getDepartAirportLatLng();
+    if (departLL) {
+      const f = flights.find((fl) => fl.ev === "depart");
+      wps.push({ time: f.departTime || "23:59", ll: departLL, exact: true, elId: `travel-depart-${i}` });
     }
     wps.sort((a, b) => a.time.localeCompare(b.time));
 

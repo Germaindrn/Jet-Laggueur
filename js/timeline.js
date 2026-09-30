@@ -76,7 +76,8 @@ function tlItemHtml(i, it, visitor) {
     const code = ((f.ev === "arrive" ? f.toCode : f.fromCode) || "").toUpperCase();
     const city = (AP[code] && AP[code].c) || code || "?";
     const time = f.ev === "arrive" ? f.arriveTime : f.departTime;
-    return `<li class="tl-item tl-flight" data-start="${it.start == null ? "" : it.start}">
+    const way = f.ev === "depart" ? `<li class="tl-travel" id="tl-tr-${i}-depart" hidden></li>` : "";
+    return `${way}<li class="tl-item tl-flight" data-start="${it.start == null ? "" : it.start}">
       <div class="tl-time"><strong>${escapeHtml(time || "—")}</strong></div>
       <div class="tl-card">
         <div class="tl-title">✈ ${f.ev === "arrive" ? "Arrivée" : "Départ"} · ${escapeHtml(city)}${code ? ` (${escapeHtml(code)})` : ""}</div>
@@ -240,6 +241,9 @@ async function fillTimelineTravel(trip, myToken) {
     if (!flights.some((f) => f.ev === "depart") && day.nightLatLng) {
       wps.push({ time: "21:00", ll: day.nightLatLng, exact: nightPlaceShown(day), elId: `tl-tr-${i}-night` });
     }
+    const depart = flights.find((f) => f.ev === "depart");
+    const departLL = depart && getDepartAirportLatLng();
+    if (departLL) wps.push({ time: depart.departTime || "23:59", ll: departLL, exact: true, elId: `tl-tr-${i}-depart` });
     wps.sort((a, b) => a.time.localeCompare(b.time));
     for (const wp of wps) {
       if (myToken !== timelineToken) return;
