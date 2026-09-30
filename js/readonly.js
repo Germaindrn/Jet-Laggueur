@@ -112,9 +112,18 @@ function uiIcon(name) {
 
 // ==================== SURPRISE: real places or blurred ====================
 
-// True when places on screen are exact (so the itinerary can be offered).
+// True when every place on screen is exact (routes and travel times).
 function showsRealPlaces() {
   return !isSurpriseView() || !!state.surpriseShowPlaces;
+}
+
+// Per place: exact (address and itinerary) or blurred for the surprise.
+function placeShown(act) {
+  return showsRealPlaces() || !!(act && act.placeVisible);
+}
+
+function nightPlaceShown(day) {
+  return showsRealPlaces() || !!(day && day.nightPlaceVisible);
 }
 
 function surprisePlacesToggleHtml(tripId, rerender) {
@@ -123,7 +132,7 @@ function surprisePlacesToggleHtml(tripId, rerender) {
   return `<label class="surprise-places-toggle">
     <input type="checkbox" ${trip.state.surpriseShowPlaces ? "checked" : ""}
       onchange="setSurpriseShowPlaces(${trip.id}, this.checked);${rerender || ""}">
-    Les surpris voient les vraies adresses (et l'itinéraire). Sinon, lieux floutés à ±2 km.
+    Toutes les adresses visibles par les surpris (et l'itinéraire). Sinon, lieu par lieu avec la case 📍 de chaque fiche ; les autres restent floutés à ±2 km.
   </label>`;
 }
 

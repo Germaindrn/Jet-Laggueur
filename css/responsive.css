@@ -365,3 +365,29 @@
   }
 
 }
+
+/* ==================== PHONE: folded panel stays reachable ==================== */
+/* 100vh counts the area behind the browser's bottom toolbar, which hid the
+   handle of a folded panel. 100dvh is what is really visible (the vh line
+   stays as a fallback for older browsers). */
+
+@media (max-width: 760px) {
+  body.island-collapsed .main-content {
+    transform: translateY(calc(100vh - 60vh - 64px));
+    transform: translateY(calc(100dvh - 60vh - 64px));
+  }
+  body.readonly.island-collapsed .main-content {
+    transform: translateY(calc(100vh - 40vh - 64px));
+    transform: translateY(calc(100dvh - 40vh - 64px));
+  }
+  .island-handle {
+    height: 44px;
+  }
+}
+
+@media (max-width: 600px) {
+  body.island-collapsed:not(.readonly) .main-content {
+    transform: translateY(calc(100vh - 50vh - 64px));
+    transform: translateY(calc(100dvh - 50vh - 64px));
+  }
+}

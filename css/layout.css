@@ -168,3 +168,14 @@ body.detail-open .main-content {
 body.island-collapsed:not(.view-home) .app-header {
   transform: translateY(calc(-100% - 24px));
 }
+
+/* The map's zoom buttons sit below the fixed header, and follow it up when
+   it slides away. */
+#map .leaflet-top {
+  top: var(--app-header-h, 0px);
+  transition: top 0.3s ease;
+}
+
+body.island-collapsed #map .leaflet-top {
+  top: 0;
+}

@@ -515,3 +515,23 @@ body.hide-travel .tl-travel {
   align-items: center;
   gap: 6px;
 }
+
+/* Global "addresses visible" setting: a plain checkbox line, not the
+   uppercase caption style every <label> gets from forms.css. */
+.surprise-places-toggle {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.surprise-places-toggle input {
+  width: auto;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.detail-place-row {
+  margin-top: 6px;
+  justify-content: flex-end;
+}

@@ -490,10 +490,10 @@ function openActivityDetail(dayIdx, actId, ev) {
     body.innerHTML = `
       <div class="detail-meta">
         ${act.time ? `<div class="detail-meta-time">🕒 ${escapeHtml(act.time)} · ${durTxt}</div>` : ""}
-        ${showsRealPlaces() && act.place ? `<div class="detail-meta-place">📍 ${escapeHtml(act.place)}</div>` : ""}
+        ${placeShown(act) && act.place ? `<div class="detail-meta-place">📍 ${escapeHtml(act.place)}</div>` : ""}
       </div>
       <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
-      ${showsRealPlaces() ? itineraryBtnHtml(act.latLng, act.shareName || act.place) : ""}
+      ${placeShown(act) ? itineraryBtnHtml(act.latLng, act.shareName || act.place) : ""}
       <div class="detail-weather" id="dp-weather"></div>
       <div class="detail-share-desc">
         ${act.shareDescription
@@ -550,10 +550,11 @@ function openActivityDetail(dayIdx, actId, ev) {
     <label class="detail-label">Couleur
       <div class="color-palette" id="dp-colors">${swatches}</div>
     </label>
-    <label class="detail-label">Lieu
+    <div class="detail-label">
+      <div class="detail-label-row"><span>Lieu</span>${surpriseToggleHtml("dp-place-vis", act.placeVisible, PLACE_TOGGLE_LABEL, PLACE_TOGGLE_TITLE)}</div>
       <input type="text" id="dp-place" placeholder="Adresse, ville…" value="${escapeAttr(act.place || "")}">
       <div class="geocode-status" id="dp-geo">${act.latLng ? '<span class="geocode-ok">✓ Localisé</span>' : ""}</div>
-    </label>
+    </div>
     <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
     ${itineraryBtnHtml(act.latLng, act.name || act.place)}
     <div class="detail-label">Météo prévue
@@ -615,6 +616,7 @@ function openActivityDetail(dayIdx, actId, ev) {
   });
   bindSurpriseToggle("dp-name-vis", "dp-share-name-wrap", (on) => updateActivity(dayIdx, actId, "nameVisible", on));
   bindSurpriseToggle("dp-desc-vis", "dp-share-desc-wrap", (on) => updateActivity(dayIdx, actId, "descVisible", on));
+  bindSurpriseToggle("dp-place-vis", null, (on) => updateActivity(dayIdx, actId, "placeVisible", on));
   setTimeout(() => initDetailMap(act.latLng), 50);
   fillDetailWeather(dayIdx, act);
   showDetailPanel();
@@ -702,10 +704,14 @@ function updateDetailMap(latLng) {
 
 // "Visible par les surpris": ticked, the surprise roles and visitor links
 // see the real value; unticked, a field below takes the one meant for them.
-function surpriseToggleHtml(id, checked) {
-  return `<label class="surprise-toggle" title="Cochée : les surpris voient ce champ tel quel. Décochée : tu leur donnes une autre version.">
-    <input type="checkbox" id="${id}" ${checked ? "checked" : ""}> 🎁 Visible par les surpris</label>`;
+function surpriseToggleHtml(id, checked, label = "🎁 Visible par les surpris",
+  title = "Cochée : les surpris voient ce champ tel quel. Décochée : tu leur donnes une autre version.") {
+  return `<label class="surprise-toggle" title="${title}">
+    <input type="checkbox" id="${id}" ${checked ? "checked" : ""}> ${label}</label>`;
 }
+
+const PLACE_TOGGLE_LABEL = "📍 Adresse visible par les surpris";
+const PLACE_TOGGLE_TITLE = "Cochée : les surpris voient l'adresse exacte et l'itinéraire. Décochée : lieu flouté à ±2 km.";
 
 function bindSurpriseToggle(checkboxId, altWrapId, onChange) {
   const cb = document.getElementById(checkboxId);
@@ -729,7 +735,7 @@ function openNightDetail(dayIdx, ev) {
     if (day.nightLocation) title.textContent = `Jour ${dayIdx + 1} · ${day.nightLocation}`;
     body.innerHTML = `
       <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
-      ${showsRealPlaces() ? itineraryBtnHtml(day.nightLatLng, day.nightLocation) : ""}
+      ${nightPlaceShown(day) ? itineraryBtnHtml(day.nightLatLng, day.nightLocation) : ""}
       <div class="detail-share-desc">
         ${day.nightShareDescription
           ? escapeHtml(day.nightShareDescription).replace(/\n/g, "<br>")
@@ -759,6 +765,7 @@ function openNightDetail(dayIdx, ev) {
       <div class="detail-label-row"><span>Hôtel, Airbnb…</span>${surpriseToggleHtml("dp-night-name-vis", day.nightNameVisible)}</div>
       <input type="text" id="dp-night-place" value="${escapeAttr(day.nightLocation || "")}">
       <div class="geocode-status" id="dp-night-geo">${day.nightLatLng ? '<span class="geocode-ok">✓ Localisé</span>' : ""}</div>
+      <div class="detail-label-row detail-place-row">${surpriseToggleHtml("dp-night-place-vis", day.nightPlaceVisible, PLACE_TOGGLE_LABEL, PLACE_TOGGLE_TITLE)}</div>
     </div>
     <label class="detail-label detail-alt" id="dp-night-share-name-wrap" ${day.nightNameVisible ? "hidden" : ""}>Nom vu par les surpris
       <input type="text" id="dp-night-share-name" placeholder="Hébergement" value="${escapeAttr(day.nightShareName || "")}">
@@ -795,6 +802,7 @@ function openNightDetail(dayIdx, ev) {
   });
   bindSurpriseToggle("dp-night-name-vis", "dp-night-share-name-wrap", (on) => updateDayField(dayIdx, "nightNameVisible", on));
   bindSurpriseToggle("dp-night-desc-vis", "dp-night-share-desc-wrap", (on) => updateDayField(dayIdx, "nightDescVisible", on));
+  bindSurpriseToggle("dp-night-place-vis", null, (on) => updateDayField(dayIdx, "nightPlaceVisible", on));
   showDetailPanel();
 }
 

@@ -16,7 +16,16 @@ function toggleIsland() {
 
 window.addEventListener("resize", () => {
   if (typeof map !== "undefined" && map) map.invalidateSize();
+  measureHeader();
 });
+
+// The header is fixed over the full-screen map: its height feeds
+// --app-header-h, used to keep the map's zoom buttons and the timeline's
+// sticky day titles below it.
+function measureHeader() {
+  const header = document.querySelector(".app-header");
+  if (header) document.documentElement.style.setProperty("--app-header-h", header.offsetHeight + "px");
+}
 
 function showTab(name, event) {
   document
@@ -39,6 +48,7 @@ function setView(v) {
   if (currentView === "trip" && typeof map !== "undefined" && map) {
     setTimeout(() => map.invalidateSize(), 50);
   }
+  requestAnimationFrame(measureHeader);
 }
 
 function restoreUI() {

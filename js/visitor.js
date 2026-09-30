@@ -58,21 +58,24 @@ function surpriseNightDesc(d) { return (d.nightDescVisible ? d.nightDescription 
 
 // `blur(key, latLng)` lets links draw fresh noise and the live role reuse
 // the same noise per place.
-// With `surpriseShowPlaces` (admin setting), places stay exact and keep
-// their address, so the itinerary works; otherwise they are blurred.
+// A place stays exact, with its address (so the itinerary works), when its
+// "📍 Adresse visible" box is ticked or the admin shows all of them
+// (`surpriseShowPlaces`); otherwise it is blurred.
 function buildVisitorTrip(src, blur = (key, ll) => randomOffsetLatLng(ll)) {
-  const exact = !!src.surpriseShowPlaces;
-  if (exact) blur = (key, ll) => (ll && ll.length === 2 ? ll.slice() : null);
+  const all = !!src.surpriseShowPlaces;
+  const keep = (ll) => (ll && ll.length === 2 ? ll.slice() : null);
   const days = (src.days || []).map((d, i) => ({
-    nightLatLng: blur("n" + i, d.nightLatLng),
+    nightLatLng: all || d.nightPlaceVisible ? keep(d.nightLatLng) : blur("n" + i, d.nightLatLng),
+    nightPlaceVisible: all || !!d.nightPlaceVisible,
     nightShareName: surpriseNightName(d),
     nightShareDescription: surpriseNightDesc(d),
     activities: (d.activities || []).map((a) => ({
       id: a.id,
       time: a.time || "",
       durationMin: Number(a.durationMin) || 60,
-      latLng: blur("a" + a.id, a.latLng),
-      place: exact ? a.place || "" : "",
+      latLng: all || a.placeVisible ? keep(a.latLng) : blur("a" + a.id, a.latLng),
+      place: all || a.placeVisible ? a.place || "" : "",
+      placeVisible: all || !!a.placeVisible,
       shareName: surpriseActName(a),
       shareDescription: surpriseActDesc(a),
       color: a.color || null,
@@ -84,7 +87,7 @@ function buildVisitorTrip(src, blur = (key, ll) => randomOffsetLatLng(ll)) {
     trip: {
       title: src.title || "Voyage",
       numDays: src.numDays || days.length,
-      surpriseShowPlaces: exact,
+      surpriseShowPlaces: all,
       flights: (src.flights || []).map((f) => ({
         id: f.id || Date.now(),
         fromCode: f.fromCode || "",
@@ -236,6 +239,7 @@ function visitorTripToState(trip) {
     days: (trip.days || []).map((d) => ({
       nightLocation: d.nightShareName || "",
       nightLatLng: d.nightLatLng || null,
+      nightPlaceVisible: !!d.nightPlaceVisible,
       nightDescription: "",
       nightShareDescription: d.nightShareDescription || "",
       activities: (d.activities || []).map((a) => ({
@@ -244,6 +248,7 @@ function visitorTripToState(trip) {
         durationMin: Number(a.durationMin) || 60,
         name: "",
         place: a.place || "",
+        placeVisible: !!a.placeVisible,
         latLng: a.latLng || null,
         description: "",
         shareName: a.shareName || "",

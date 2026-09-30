@@ -54,7 +54,6 @@ function tlDayItems(i, date) {
 
 function tlItemHtml(i, it, visitor) {
   const day = state.days[i];
-  const real = showsRealPlaces();
   if (it.kind === "cont") {
     const act = it.act;
     const name = visitor ? (act.shareName || `Activité ${String.fromCharCode(65 + it.j)}`) : (act.name || "Sans titre");
@@ -90,7 +89,7 @@ function tlItemHtml(i, it, visitor) {
       <div class="tl-card">
         <div class="tl-title">🛏 ${escapeHtml(name)}</div>
         ${notes ? `<div class="tl-notes">${escapeHtml(notes)}</div>` : ""}
-        ${real && day.nightLatLng ? `<div class="tl-foot">${itineraryBtnHtml(day.nightLatLng, day.nightLocation, "tl-go")}</div>` : ""}
+        ${nightPlaceShown(day) && day.nightLatLng ? `<div class="tl-foot">${itineraryBtnHtml(day.nightLatLng, day.nightLocation, "tl-go")}</div>` : ""}
       </div>
     </li>`;
   }
@@ -100,14 +99,14 @@ function tlItemHtml(i, it, visitor) {
     : (act.name || "Sans titre");
   const notes = visitor ? act.shareDescription : act.description;
   const color = act.color ? ` style="--act-color:${escapeAttr(act.color)}"` : "";
-  const go = real && act.latLng ? itineraryBtnHtml(act.latLng, name || act.place, "tl-go") : "";
+  const go = placeShown(act) && act.latLng ? itineraryBtnHtml(act.latLng, name || act.place, "tl-go") : "";
   return `<li class="tl-travel" id="tl-tr-${i}-${act.id}" hidden></li>
   <li class="tl-item tl-act" data-start="${it.start == null ? "" : it.start}" data-end="${it.end == null ? "" : it.end}"${color}
     onclick="openActivityDetail(${i}, ${act.id}, event)">
     <div class="tl-time">${it.start == null ? "<strong>—</strong>" : `<strong>${tlClock(it.start)}</strong><span>${tlEnd(it.end)}</span>`}</div>
     <div class="tl-card">
       <div class="tl-title">${escapeHtml(name)}</div>
-      ${real && act.place ? `<div class="tl-sub">📍 ${escapeHtml(act.place)}</div>` : ""}
+      ${placeShown(act) && act.place ? `<div class="tl-sub">📍 ${escapeHtml(act.place)}</div>` : ""}
       ${notes ? `<div class="tl-notes">${escapeHtml(notes)}</div>` : ""}
       <div class="tl-foot"><span class="tl-wx" id="tl-wx-${i}-${act.id}" hidden></span>${go}</div>
     </div>
@@ -119,8 +118,7 @@ function renderTimeline() {
   if (!box) return;
   const myToken = ++timelineToken;
   if (!timelineActive()) { box.innerHTML = ""; return; }
-  const header = document.querySelector(".app-header");
-  if (header) document.documentElement.style.setProperty("--app-header-h", header.offsetHeight + "px");
+  measureHeader();
 
   const visitor = isSurpriseView();
   const trip = computeTripDates();
