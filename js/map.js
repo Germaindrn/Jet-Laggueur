@@ -41,13 +41,15 @@ function clearMap() {
   routePolylines = [];
 }
 
-function makeIcon(color, label, dayIdx, isAirport) {
+// `days` / `nights`: day indexes of the activities / nights on this pill,
+// used to highlight it when one of those days is focused.
+function makeIcon(color, label, { days = [], nights = [], isAirport = false, count = 1 } = {}) {
   const safe = escapeHtml(String(label || ""));
-  const dayAttr = dayIdx == null ? "" : ` data-day="${dayIdx}"`;
-  const apAttr = isAirport ? ` data-airport="1"` : "";
+  const attrs = ` data-days="${days.join(",")}" data-nights="${nights.join(",")}"` + (isAirport ? ` data-airport="1"` : "");
+  const badge = count > 1 ? `<span class="map-pill-count">${count}</span>` : "";
   return L.divIcon({
     className: "map-pill-icon",
-    html: `<div class="map-pill"${dayAttr}${apAttr} style="background:${color};"><span class="map-pill-dot"></span><span class="map-pill-label">${safe}</span></div>`,
+    html: `<div class="map-pill"${attrs} style="background:${color};"><span class="map-pill-dot"></span><span class="map-pill-label">${safe}</span>${badge}</div>`,
     iconSize: null,
     iconAnchor: [8, 8],
     popupAnchor: [0, -10],
@@ -125,6 +127,9 @@ async function updateMap() {
           label,
           color: act.color || colGold,
           layer: MARKER_LAYER.activity,
+          kind: "act",
+          open: `openActivityDetail(${i}, ${act.id})`,
+          line: `J${i + 1}${act.time ? " · " + act.time : ""}`,
           dayIdx: i,
           popup: popupText,
         });
@@ -144,6 +149,10 @@ async function updateMap() {
           label,
           color: colNavyLight,
           layer: MARKER_LAYER.night,
+          kind: "night",
+          open: `openNightDetail(${i})`,
+          line: `Nuit ${i + 1}`,
+          name: day.nightLocation || "Hébergement",
           dayIdx: i,
           popup: nightPopup,
         });
@@ -163,10 +172,17 @@ async function updateMap() {
     return;
   }
 
-  pts.forEach((p) => {
-    const m = L.marker(p.latlng, { icon: makeIcon(p.color, p.label, p.dayIdx, p.isAirport), zIndexOffset: p.layer || 0 })
+  groupMapPoints(pts).forEach((g) => {
+    const p = g[0];
+    const acts = g.filter((x) => x.kind === "act");
+    const days = acts.map((x) => x.dayIdx);
+    const nights = g.filter((x) => x.kind === "night").map((x) => x.dayIdx);
+    const lead = acts[0] || p;
+    const icon = makeIcon(lead.color, lead.label, { days, nights, isAirport: p.isAirport, count: g.length });
+    const layer = Math.max(...g.map((x) => x.layer || 0));
+    const m = L.marker(p.latlng, { icon, zIndexOffset: layer })
       .addTo(map)
-      .bindPopup(p.popup);
+      .bindPopup(g.length > 1 ? groupPopupHtml(g) : p.popup);
     m._dayIdx = p.dayIdx;
     m._isAirport = !!p.isAirport;
     mapMarkers.push(m);
@@ -226,13 +242,16 @@ function applyDayHighlight() {
   const lastDay = state.days.length - 1;
   const airportInFocus = focusedDay === 0 || focusedDay === lastDay;
   const pills = document.querySelectorAll(".map-pill");
+  const list = (s) => (s ? s.split(",").map(Number) : []);
   pills.forEach((p) => {
-    const d = p.dataset.day;
-    const dn = d == null ? null : Number(d);
+    const days = list(p.dataset.days);
+    const nights = list(p.dataset.nights);
     const isAirport = p.dataset.airport === "1";
+    // A day shows its activities, its night and the night before.
     const inFocus = focusedDay != null && (
-      dn === focusedDay ||
-      (dn === prev && isPrevNightMarker(p, prev)) ||
+      days.includes(focusedDay) ||
+      nights.includes(focusedDay) ||
+      (prev != null && nights.includes(prev)) ||
       (isAirport && airportInFocus)
     );
     p.classList.toggle("dimmed", focusedDay != null && !inFocus);
@@ -252,10 +271,29 @@ function applyDayHighlight() {
   });
 }
 
-function isPrevNightMarker(pill, prevDayIdx) {
-  if (prevDayIdx == null || prevDayIdx < 0) return false;
-  const label = pill.querySelector(".map-pill-label")?.textContent || "";
-  return label === "Nuit";
+// Activities and nights on the same spot (~10 m) share one pill; its popup
+// lists them. The airport keeps its own.
+function groupMapPoints(pts) {
+  const groups = new Map();
+  const out = [];
+  pts.forEach((p) => {
+    if (p.isAirport) { out.push([p]); return; }
+    const key = p.latlng[0].toFixed(4) + "," + p.latlng[1].toFixed(4);
+    if (!groups.has(key)) { groups.set(key, []); out.push(groups.get(key)); }
+    groups.get(key).push(p);
+  });
+  // Chronological: day, then activities before the night.
+  out.forEach((g) => g.sort((a, b) => (a.dayIdx - b.dayIdx) || ((a.kind === "night") - (b.kind === "night"))));
+  return out;
+}
+
+function groupPopupHtml(g) {
+  const items = g.map((x) => `<button type="button" class="map-group-item" onclick="map.closePopup();${x.open}">
+      <span class="map-group-dot" style="background:${x.color}"></span>
+      <span class="map-group-when">${escapeHtml(x.line || "")}</span>
+      <span class="map-group-name">${escapeHtml(x.name || x.label || "")}</span>
+    </button>`).join("");
+  return `<div class="map-group"><div class="map-group-title">${g.length} étapes ici</div>${items}</div>`;
 }
 
 window.addEventListener("load", () => {
