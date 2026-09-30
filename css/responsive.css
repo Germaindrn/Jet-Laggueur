@@ -376,12 +376,22 @@
     transform: translateY(calc(100vh - 60vh - 64px));
     transform: translateY(calc(100dvh - 60vh - 64px));
   }
+  /* Read-only: the folded strip shows the grip and, under it, the three
+     timeline filters, which stay usable. */
   body.readonly.island-collapsed .main-content {
-    transform: translateY(calc(100vh - 40vh - 64px));
-    transform: translateY(calc(100dvh - 40vh - 64px));
+    transform: translateY(calc(100vh - 40vh - 76px));
+    transform: translateY(calc(100dvh - 40vh - 76px));
   }
+  body.readonly .main-content {
+    padding-top: 30px;
+  }
+  /* A small centred pill, not a full-width band over the filters. */
   .island-handle {
-    height: 44px;
+    left: 50%;
+    right: auto;
+    width: 96px;
+    height: 28px;
+    transform: translateX(-50%);
   }
 }
 
