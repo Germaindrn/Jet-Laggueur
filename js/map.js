@@ -29,6 +29,9 @@ const map = L.map("map", { zoomControl: true }).setView([46.2, 2.3], 5);
 addBaseLayer(map);
 
 let mapMarkers = [];
+// Leaflet stacks markers by latitude; these offsets keep activities above
+// the airport, and both above nights, wherever they are.
+const MARKER_LAYER = { activity: 20000, airport: 10000, night: 0 };
 let routePolylines = [];
 
 function clearMap() {
@@ -84,6 +87,7 @@ async function updateMap() {
       label: destCode,
       color: colNavy,
       isAirport: true,
+      layer: MARKER_LAYER.airport,
       popup: `✈ ${destCode} · ${a.c}<br><small>${a.n}</small>`,
     });
   }
@@ -120,6 +124,7 @@ async function updateMap() {
           latlng: act.latLng,
           label,
           color: act.color || colGold,
+          layer: MARKER_LAYER.activity,
           dayIdx: i,
           popup: popupText,
         });
@@ -138,6 +143,7 @@ async function updateMap() {
           latlng: day.nightLatLng,
           label,
           color: colNavyLight,
+          layer: MARKER_LAYER.night,
           dayIdx: i,
           popup: nightPopup,
         });
@@ -158,7 +164,7 @@ async function updateMap() {
   }
 
   pts.forEach((p) => {
-    const m = L.marker(p.latlng, { icon: makeIcon(p.color, p.label, p.dayIdx, p.isAirport) })
+    const m = L.marker(p.latlng, { icon: makeIcon(p.color, p.label, p.dayIdx, p.isAirport), zIndexOffset: p.layer || 0 })
       .addTo(map)
       .bindPopup(p.popup);
     m._dayIdx = p.dayIdx;
