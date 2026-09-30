@@ -336,7 +336,7 @@ function drawStraightRoutes(pts) {
 }
 
 async function drawRoutes(pts) {
-  if (isSurpriseView()) {
+  if (!showsRealPlaces()) {
     return drawStraightRoutes(pts);
   }
   const infos = [];

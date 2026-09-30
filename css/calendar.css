@@ -479,3 +479,87 @@ body.hide-travel .cal-evt-travel {
   font-size: 2.5rem;
   margin-bottom: 10px;
 }
+
+/* ==================== DAY / NIGHT (sunrise → sunset at the day's night) ==================== */
+
+.cal-day-body.has-sun {
+  background: color-mix(in srgb, var(--navy) 10%, var(--white));
+}
+
+.cal-daylight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--white);
+  pointer-events: none;
+}
+
+.cal-daylight::before,
+.cal-daylight::after {
+  position: absolute;
+  right: 4px;
+  font-size: 0.6rem;
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.cal-daylight::before { content: attr(data-rise); top: 1px; }
+.cal-daylight::after { content: attr(data-set); bottom: 1px; }
+
+/* Activity running past midnight: cut at the bottom, resumed next day. */
+.cal-evt-act.spans {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.cal-evt-cont {
+  border-top: 2px dashed var(--act-color, var(--gold));
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  cursor: pointer;
+}
+
+/* ==================== ACCOMMODATION (under each day) ==================== */
+
+.cal-day-night {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-top: 2px solid var(--navy-light);
+  background: color-mix(in srgb, var(--navy-light) 12%, var(--white));
+  font-size: 0.74rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.cal-day-night:hover { background: color-mix(in srgb, var(--navy-light) 22%, var(--white)); }
+.cal-day-night.selected { box-shadow: inset 0 0 0 2px var(--gold); }
+
+.cal-day-night.none {
+  background: transparent;
+  border-top-color: var(--sand);
+  cursor: default;
+}
+
+.cal-night-name {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-night-empty {
+  color: var(--muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.cal-night-travel {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+body.readonly .cal-day-night.empty { cursor: default; }

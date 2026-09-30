@@ -73,22 +73,68 @@ function applyModeUI() {
   if (typeof isVisitorMode === "function" && isVisitorMode()) { btn.hidden = true; return; }
   btn.hidden = false;
   const role = currentRole();
+  let icon, label;
   if (role !== "admin") {
-    const r = CLOUD_ROLES[role];
-    btn.textContent = r.icon + " " + r.label;
+    icon = role === "voyageur" ? "eye" : "gift";
+    label = CLOUD_ROLES[role].label;
     btn.title = role === "voyageur"
-      ? "Tu vois tout le voyage ; seuls les admins peuvent le modifier"
-      : "Tu vois la version surprise du voyage ; lieux approximatifs";
+      ? "Voyageur : tu vois tout le voyage ; seuls les admins peuvent le modifier"
+      : "Surpris : tu vois la version surprise du voyage";
     btn.className = "btn btn-ghost btn-sm header-trip-only mode-btn mode-locked";
   } else if (editMode) {
-    btn.textContent = "✓ Terminer";
+    icon = "check";
+    label = "Terminer";
     btn.title = "Revenir en lecture";
     btn.className = "btn btn-gold btn-sm header-trip-only mode-btn";
   } else {
-    btn.textContent = "✏️ Gérer";
+    icon = "pencil";
+    label = "Gérer";
     btn.title = "Passer en mode gestion pour modifier le voyage";
     btn.className = "btn btn-ghost btn-sm header-trip-only mode-btn";
   }
+  btn.innerHTML = uiIcon(icon) + `<span class="btn-label">${label}</span>`;
+  btn.setAttribute("aria-label", label);
+}
+
+// Sober line icons for the header (they inherit the text colour).
+const UI_ICONS = {
+  home: '<path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
+  pencil: '<path d="M4 20h4L19.5 8.5l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  gift: '<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5.5 12v8h13v-8M12 8v12"/><path d="M12 8c-2-3.5-5.5-3.5-5.5-1.5S9 8 12 8zm0 0c2-3.5 5.5-3.5 5.5-1.5S15 8 12 8z"/>',
+};
+
+function uiIcon(name) {
+  return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${UI_ICONS[name]}</svg>`;
+}
+
+// ==================== SURPRISE: real places or blurred ====================
+
+// True when places on screen are exact (so the itinerary can be offered).
+function showsRealPlaces() {
+  return !isSurpriseView() || !!state.surpriseShowPlaces;
+}
+
+function surprisePlacesToggleHtml(tripId, rerender) {
+  const trip = allTrips.find((t) => t.id === Number(tripId));
+  if (!trip || !cloudIsAdmin(trip)) return "";
+  return `<label class="surprise-places-toggle">
+    <input type="checkbox" ${trip.state.surpriseShowPlaces ? "checked" : ""}
+      onchange="setSurpriseShowPlaces(${trip.id}, this.checked);${rerender || ""}">
+    Les surpris voient les vraies adresses (et l'itinéraire). Sinon, lieux floutés à ±2 km.
+  </label>`;
+}
+
+function setSurpriseShowPlaces(tripId, on) {
+  const trip = allTrips.find((t) => t.id === Number(tripId));
+  if (!trip || !cloudIsAdmin(trip)) return;
+  trip.state.surpriseShowPlaces = !!on;
+  trip.updatedAt = Date.now();
+  tripSigs.set(trip.id, tripSignature(trip.state));
+  if (typeof cloudNoteLocalChange === "function") cloudNoteLocalChange(trip);
+  try { localStorage.setItem("voyageplanner_trips", JSON.stringify(allTrips)); } catch (e) {}
 }
 
 // Called by cloud.js when an admin changes this device's role on a trip.
@@ -121,7 +167,7 @@ function renderNowLine() {
   dayEl.classList.add("day-today");
   const body = dayEl.querySelector(".cal-day-body");
   if (!body) return;
-  const START_HOUR = 6;
+  const START_HOUR = 0;
   const now = new Date();
   const top = (now.getHours() - START_HOUR + now.getMinutes() / 60) * getCalVZoom();
   if (top < 0 || top > parseFloat(body.style.height || "0") + 4) return;

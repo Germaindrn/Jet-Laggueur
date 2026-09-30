@@ -75,9 +75,9 @@ function fitCalZoom() {
 
 const CAL_VZOOM_MIN = 20;
 const CAL_VZOOM_MAX = 140;
-const CAL_VZOOM_DEFAULT = 60;
+const CAL_VZOOM_DEFAULT = 40;
 const CAL_VZOOM_STEP = 10;
-const CAL_HOURS_RANGE = 18;
+const CAL_HOURS_RANGE = 24;
 
 function getCalVZoom() {
   try {

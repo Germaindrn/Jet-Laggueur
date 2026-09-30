@@ -20,6 +20,11 @@ function tlClock(min) {
   return String(Math.floor(min / 60) % 24).padStart(2, "0") + ":" + String(min % 60).padStart(2, "0");
 }
 
+// End time, marked "+1" when the activity runs past midnight.
+function tlEnd(min) {
+  return tlClock(min) + (min > 1440 ? " <small>+1</small>" : "");
+}
+
 function tlDayItems(i, date) {
   const day = state.days[i];
   const flights = date ? getFlightsOn(date) : [];
@@ -27,6 +32,13 @@ function tlDayItems(i, date) {
   const depart = flights.find((f) => f.ev === "depart");
   const items = [];
   if (arrive) items.push({ kind: "flight", start: tlMinutes(arrive.arriveTime), f: arrive });
+  // What is left of yesterday's activities running past midnight.
+  const prev = state.days[i - 1];
+  if (prev) prev.activities.forEach((act, j) => {
+    const start = tlMinutes(act.time);
+    const end = start == null ? null : start + (Number(act.durationMin) || 60);
+    if (end > 1440) items.push({ kind: "cont", start: 0, end: Math.min(end - 1440, 1440), act, j, fromDay: i - 1 });
+  });
   day.activities.forEach((act, j) => {
     const start = tlMinutes(act.time);
     const dur = Number(act.durationMin) || 60;
@@ -35,12 +47,27 @@ function tlDayItems(i, date) {
   if (depart) items.push({ kind: "flight", start: tlMinutes(depart.departTime), f: depart });
   // Timed items in order, untimed ones after them.
   items.sort((x, y) => (x.start == null) - (y.start == null) || (x.start || 0) - (y.start || 0));
-  if (!depart) items.push({ kind: "night", start: 21 * 60 });
+  // The night only once it is entered.
+  if (!depart && day.nightLocation) items.push({ kind: "night", start: 21 * 60 });
   return items;
 }
 
 function tlItemHtml(i, it, visitor) {
   const day = state.days[i];
+  const real = showsRealPlaces();
+  if (it.kind === "cont") {
+    const act = it.act;
+    const name = visitor ? (act.shareName || `Activité ${String.fromCharCode(65 + it.j)}`) : (act.name || "Sans titre");
+    const color = act.color ? ` style="--act-color:${escapeAttr(act.color)}"` : "";
+    return `<li class="tl-item tl-act tl-cont" data-start="0" data-end="${it.end}"${color}
+      onclick="openActivityDetail(${it.fromDay}, ${act.id}, event)">
+      <div class="tl-time"><strong>00:00</strong><span>${tlClock(it.end)}</span></div>
+      <div class="tl-card">
+        <div class="tl-title">↳ ${escapeHtml(name)}</div>
+        <div class="tl-sub">Suite de la veille</div>
+      </div>
+    </li>`;
+  }
   if (it.kind === "flight") {
     const f = it.f;
     const code = ((f.ev === "arrive" ? f.toCode : f.fromCode) || "").toUpperCase();
@@ -63,7 +90,7 @@ function tlItemHtml(i, it, visitor) {
       <div class="tl-card">
         <div class="tl-title">🛏 ${escapeHtml(name)}</div>
         ${notes ? `<div class="tl-notes">${escapeHtml(notes)}</div>` : ""}
-        ${!visitor && day.nightLatLng ? `<div class="tl-foot">${itineraryBtnHtml(day.nightLatLng, day.nightLocation, "tl-go")}</div>` : ""}
+        ${real && day.nightLatLng ? `<div class="tl-foot">${itineraryBtnHtml(day.nightLatLng, day.nightLocation, "tl-go")}</div>` : ""}
       </div>
     </li>`;
   }
@@ -73,14 +100,14 @@ function tlItemHtml(i, it, visitor) {
     : (act.name || "Sans titre");
   const notes = visitor ? act.shareDescription : act.description;
   const color = act.color ? ` style="--act-color:${escapeAttr(act.color)}"` : "";
-  const go = !visitor && act.latLng ? itineraryBtnHtml(act.latLng, act.name || act.place, "tl-go") : "";
+  const go = real && act.latLng ? itineraryBtnHtml(act.latLng, name || act.place, "tl-go") : "";
   return `<li class="tl-travel" id="tl-tr-${i}-${act.id}" hidden></li>
   <li class="tl-item tl-act" data-start="${it.start == null ? "" : it.start}" data-end="${it.end == null ? "" : it.end}"${color}
     onclick="openActivityDetail(${i}, ${act.id}, event)">
-    <div class="tl-time">${it.start == null ? "<strong>—</strong>" : `<strong>${tlClock(it.start)}</strong><span>${tlClock(it.end)}</span>`}</div>
+    <div class="tl-time">${it.start == null ? "<strong>—</strong>" : `<strong>${tlClock(it.start)}</strong><span>${tlEnd(it.end)}</span>`}</div>
     <div class="tl-card">
       <div class="tl-title">${escapeHtml(name)}</div>
-      ${!visitor && act.place ? `<div class="tl-sub">📍 ${escapeHtml(act.place)}</div>` : ""}
+      ${real && act.place ? `<div class="tl-sub">📍 ${escapeHtml(act.place)}</div>` : ""}
       ${notes ? `<div class="tl-notes">${escapeHtml(notes)}</div>` : ""}
       <div class="tl-foot"><span class="tl-wx" id="tl-wx-${i}-${act.id}" hidden></span>${go}</div>
     </div>
@@ -99,7 +126,8 @@ function renderTimeline() {
   const trip = computeTripDates();
   const dates = trip ? trip.dates : state.days.map(() => null);
   const today = todayISO();
-  let html = trip ? "" : `<p class="tl-hint">Les vols ne sont pas encore renseignés : les jours ne sont pas datés.</p>`;
+  let html = tlFiltersHtml();
+  html += trip ? "" : `<p class="tl-hint">Les vols ne sont pas encore renseignés : les jours ne sont pas datés.</p>`;
   if (!dates.length) html += `<p class="tl-hint">Aucun jour dans ce voyage pour l'instant.</p>`;
   dates.forEach((date, i) => {
     if (!state.days[i]) return;
@@ -131,7 +159,7 @@ function renderTimeline() {
   }
   if (trip) {
     fillTimelineWeather(trip, myToken);
-    if (!visitor) fillTimelineTravel(trip, myToken);
+    if (showsRealPlaces()) fillTimelineTravel(trip, myToken);
   }
 }
 
@@ -229,6 +257,28 @@ async function fillTimelineTravel(trip, myToken) {
       prev = wp.ll;
     }
   }
+}
+
+// Display filters, also reachable read-only: same preferences as the
+// calendar checkboxes, applied to the timeline (CSS) and the map.
+function tlFiltersHtml() {
+  const chip = (key, label, on) =>
+    `<button type="button" class="tl-chip" aria-pressed="${on}" onclick="tlToggleFilter('${key}')">${label}</button>`;
+  return `<div class="tl-filters" role="group" aria-label="Afficher">
+    ${chip("act", "Activités", getShowActivities())}${chip("night", "Nuits", getShowNights())}${chip("travel", "Trajets", getShowTravel())}
+  </div>`;
+}
+
+function tlToggleFilter(key) {
+  if (key === "act") toggleActivities(!getShowActivities());
+  else if (key === "night") toggleNights(!getShowNights());
+  else toggleTravel(!getShowTravel());
+  const boxes = { "toggle-activities": getShowActivities(), "toggle-nights": getShowNights(), "toggle-travel": getShowTravel() };
+  Object.keys(boxes).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.checked = boxes[id];
+  });
+  renderTimeline();
 }
 
 function onTimelineMediaChange() {

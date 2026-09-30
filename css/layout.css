@@ -159,3 +159,12 @@ body.detail-open .main-content {
 .section-body {
   padding: 18px 22px;
 }
+
+/* Folding the panel also slides the top bar away, same timing. */
+.app-header {
+  transition: transform 0.3s ease;
+}
+
+body.island-collapsed:not(.view-home) .app-header {
+  transform: translateY(calc(-100% - 24px));
+}

@@ -50,12 +50,19 @@ function seededRand(key) {
 // the alternative one typed for them.
 function surpriseActName(a) { return (a.nameVisible ? a.name : a.shareName) || ""; }
 function surpriseActDesc(a) { return (a.descVisible ? a.description : a.shareDescription) || ""; }
-function surpriseNightName(d) { return (d.nightNameVisible ? d.nightLocation : d.nightShareName) || ""; }
+// An accommodation that is entered but not named for them still shows up.
+function surpriseNightName(d) {
+  return (d.nightNameVisible ? d.nightLocation : d.nightShareName) || (d.nightLocation ? "Hébergement" : "");
+}
 function surpriseNightDesc(d) { return (d.nightDescVisible ? d.nightDescription : d.nightShareDescription) || ""; }
 
 // `blur(key, latLng)` lets links draw fresh noise and the live role reuse
 // the same noise per place.
+// With `surpriseShowPlaces` (admin setting), places stay exact and keep
+// their address, so the itinerary works; otherwise they are blurred.
 function buildVisitorTrip(src, blur = (key, ll) => randomOffsetLatLng(ll)) {
+  const exact = !!src.surpriseShowPlaces;
+  if (exact) blur = (key, ll) => (ll && ll.length === 2 ? ll.slice() : null);
   const days = (src.days || []).map((d, i) => ({
     nightLatLng: blur("n" + i, d.nightLatLng),
     nightShareName: surpriseNightName(d),
@@ -65,6 +72,7 @@ function buildVisitorTrip(src, blur = (key, ll) => randomOffsetLatLng(ll)) {
       time: a.time || "",
       durationMin: Number(a.durationMin) || 60,
       latLng: blur("a" + a.id, a.latLng),
+      place: exact ? a.place || "" : "",
       shareName: surpriseActName(a),
       shareDescription: surpriseActDesc(a),
       color: a.color || null,
@@ -76,6 +84,7 @@ function buildVisitorTrip(src, blur = (key, ll) => randomOffsetLatLng(ll)) {
     trip: {
       title: src.title || "Voyage",
       numDays: src.numDays || days.length,
+      surpriseShowPlaces: exact,
       flights: (src.flights || []).map((f) => ({
         id: f.id || Date.now(),
         fromCode: f.fromCode || "",
@@ -121,8 +130,9 @@ function openVisitorShare() {
 
   document.getElementById("modal-title").textContent = "Partager (mode visiteur)";
   document.getElementById("modal-body").innerHTML = `
-    <p class="modal-hint">Lien lecture seule, lieux floutés (±${VISITOR_RADIUS_KM} km), noms d'activités cachés.
+    <p class="modal-hint">Lien lecture seule, comme pour le rôle surpris : ${state.surpriseShowPlaces ? "vraies adresses" : `lieux floutés (±${VISITOR_RADIUS_KM} km)`}, noms d'activités cachés.
     Sur chaque activité, coche « Visible par les surpris » pour montrer le vrai nom ou la vraie description, ou saisis une autre version pour eux.</p>
+    ${surprisePlacesToggleHtml(currentTripId, "openVisitorShare()")}
     <textarea id="visitor-url" readonly>${escapeHtml(url)}</textarea>
     <div class="modal-actions">
       <button class="btn btn-gold btn-sm" onclick="copyVisitorUrl()">📋 Copier le lien</button>
@@ -221,6 +231,7 @@ function visitorTripToState(trip) {
   return {
     title: trip.title || "Voyage visiteur",
     numDays: trip.numDays || (trip.days || []).length || 1,
+    surpriseShowPlaces: !!trip.surpriseShowPlaces,
     flights: trip.flights || [],
     days: (trip.days || []).map((d) => ({
       nightLocation: d.nightShareName || "",
@@ -232,7 +243,7 @@ function visitorTripToState(trip) {
         time: a.time || "",
         durationMin: Number(a.durationMin) || 60,
         name: "",
-        place: "",
+        place: a.place || "",
         latLng: a.latLng || null,
         description: "",
         shareName: a.shareName || "",

@@ -78,18 +78,24 @@ function renderCalendar() {
   meta.innerHTML = "";
   metaBox.style.display = "flex";
 
-  const START_HOUR = 6;
+  const START_HOUR = 0;
   const END_HOUR = 24;
   const HOUR_PX = getCalVZoom();
+  const DAY_MIN = 1440;
 
   // Hour labels column — same height as the day bodies so the side strip
   // (background + separator) spans the full calendar height.
   const bodyHeight = (END_HOUR - START_HOUR) * HOUR_PX;
   let hoursCol = `<div class="cal-hours" style="height:${bodyHeight}px">`;
   for (let h = START_HOUR; h <= END_HOUR; h++) {
-    hoursCol += `<div class="cal-hour-label" style="top:${(h - START_HOUR) * HOUR_PX}px">${String(h).padStart(2, "0")}:00</div>`;
+    hoursCol += `<div class="cal-hour-label" style="top:${(h - START_HOUR) * HOUR_PX}px">${String(h % 24).padStart(2, "0")}:00</div>`;
   }
   hoursCol += '</div>';
+
+  const visitorCal = isSurpriseView();
+  const tz = tripTimeZone();
+  // Activities running past midnight: the rest is drawn on the next day.
+  let carry = [];
 
   const daysCols = trip.dates.map((date, i) => {
     const day = state.days[i];
@@ -100,9 +106,20 @@ function renderCalendar() {
     const hasDepart = flights.some((f) => f.ev === "depart");
     const hasArrive = flights.some((f) => f.ev === "arrive");
 
-    // Build events positioned by time
     let events = "";
-    let wpIdx = 0;
+
+    // Daylight band, from sunrise to sunset where the day's night is spent.
+    const sun = sunTimes(date, dayLocation(i), tz);
+    let bodyCls = "cal-day-body";
+    if (sun) {
+      bodyCls += " has-sun";
+      const rise = sun.polar ? (sun.polar === "day" ? 0 : null) : Math.max(0, sun.rise);
+      const set = sun.polar ? (sun.polar === "day" ? DAY_MIN : null) : Math.min(DAY_MIN, sun.set);
+      if (rise != null && set > rise) {
+        const label = sun.polar ? "" : `data-rise="☀ ${minToClock(sun.rise)}" data-set="☾ ${minToClock(sun.set)}"`;
+        events += `<div class="cal-daylight" style="top:${(rise / 60) * HOUR_PX}px;height:${((set - rise) / 60) * HOUR_PX}px" ${label}></div>`;
+      }
+    }
 
     // Hour grid lines
     for (let h = START_HOUR; h <= END_HOUR; h++) {
@@ -120,46 +137,45 @@ function renderCalendar() {
         <div class="evt-title">✈ Arrivée ${toAp ? toAp.c : to}</div>
         <div class="evt-sub">${f.flightNum || ""}</div>
       </div>`;
-      wpIdx++;
     }
 
+    // Tail of yesterday's late activities, from midnight
+    carry.forEach((c) => {
+      const colorStyle = c.act.color ? `--act-color:${c.act.color};` : "";
+      const heightPx = Math.max(20, (c.mins / 60) * HOUR_PX);
+      events += `<div class="cal-evt cal-evt-act cal-evt-cont" style="${colorStyle}top:0;height:${heightPx}px"
+        id="evt-cont-${i}-${c.act.id}" data-day="${c.day}" data-id="${c.act.id}" data-offset="${c.offset}">
+        <div class="evt-compact"><span class="evt-compact-name">↳ ${c.label}</span></div>
+        <div class="evt-resize-handle" title="Étirer pour changer la durée"></div>
+      </div>`;
+    });
+    const nextCarry = [];
+
     // Activities
-    const visitorCal = isSurpriseView();
     day.activities.forEach((act, j) => {
       const top = timeToPos(act.time, START_HOUR, HOUR_PX);
+      const start = (top / HOUR_PX) * 60;
       const dur = Number(act.durationMin) || 60;
-      const heightPx = Math.max(28, (dur / 60) * HOUR_PX);
+      const spans = start + dur > DAY_MIN;
+      const heightPx = Math.max(28, ((Math.min(start + dur, DAY_MIN) - start) / 60) * HOUR_PX);
       const sel = currentDetail && currentDetail.type === "act" && currentDetail.day === i && currentDetail.id === act.id ? " selected" : "";
       const colorStyle = act.color ? `--act-color:${act.color};` : "";
       const evtLabel = visitorCal
         ? escapeHtml(act.shareName || `Activité ${String.fromCharCode(65 + j)}`)
         : escapeHtml(act.name || "Sans titre");
+      if (spans) nextCarry.push({ act, day: i, label: evtLabel, offset: DAY_MIN - start, mins: Math.min(start + dur - DAY_MIN, DAY_MIN) });
       events += `<div class="cal-evt cal-evt-travel" id="travel-act-${act.id}" data-activity-top="${top}" style="top:${top}px;height:0;display:none">
         <div class="evt-compact"><span class="evt-compact-name travel-text"></span></div>
       </div>`;
-      events += `<div class="cal-evt cal-evt-act${sel}" style="${colorStyle}top:${top}px;height:${heightPx}px" id="evt-${i}-${act.id}" data-day="${i}" data-id="${act.id}">
+      events += `<div class="cal-evt cal-evt-act${sel}${spans ? " spans" : ""}" style="${colorStyle}top:${top}px;height:${heightPx}px" id="evt-${i}-${act.id}" data-day="${i}" data-id="${act.id}" data-offset="0">
         <div class="evt-compact">
           <span class="evt-compact-name">${evtLabel}</span>
           <span class="evt-weather" id="wx-${i}-${act.id}" style="display:none"></span>
         </div>
-        <div class="evt-resize-handle" title="Étirer pour changer la durée"></div>
+        ${spans ? "" : '<div class="evt-resize-handle" title="Étirer pour changer la durée"></div>'}
       </div>`;
-      wpIdx++;
     });
-
-    // Accommodation (not on departure day) - place at 21:00
-    if (!hasDepart) {
-      const top = timeToPos("21:00", START_HOUR, HOUR_PX);
-      const sel = currentDetail && currentDetail.type === "night" && currentDetail.day === i ? " selected" : "";
-      events += `<div class="cal-evt cal-evt-travel" id="travel-night-${i}" data-activity-top="${top}" style="top:${top}px;height:0;display:none">
-        <div class="evt-compact"><span class="evt-compact-name travel-text"></span></div>
-      </div>`;
-      events += `<div class="cal-evt cal-evt-night${sel}" style="top:${top}px" onclick="openNightDetail(${i},event)">
-        <div class="evt-compact">
-          <span class="evt-compact-name">${escapeHtml(day.nightLocation || "Hébergement")}</span>
-        </div>
-      </div>`;
-    }
+    carry = nextCarry;
 
     // Flight departure
     if (hasDepart) {
@@ -174,15 +190,29 @@ function renderCalendar() {
       </div>`;
     }
 
+    // Accommodation, under the day (none on the departure day)
+    let night = '<div class="cal-day-night none"></div>';
+    if (!hasDepart) {
+      const sel = currentDetail && currentDetail.type === "night" && currentDetail.day === i ? " selected" : "";
+      const name = day.nightLocation
+        ? `🛏 ${escapeHtml(day.nightLocation)}`
+        : (isReadOnly() ? '<span class="cal-night-empty">Hébergement non renseigné</span>' : '<span class="cal-night-empty">+ Hébergement</span>');
+      night = `<div class="cal-day-night${sel}${day.nightLocation ? "" : " empty"}" onclick="openNightDetail(${i},event)">
+        <span class="cal-night-name">${name}</span>
+        <span class="cal-night-travel" id="travel-night-${i}" hidden></span>
+      </div>`;
+    }
+
     return `<div class="cal-day">
       <div class="cal-day-head" onclick="focusDay(${i})" title="Centrer la carte sur ce jour">
         <div class="cal-day-num">J${i + 1}</div>
         <div class="cal-day-wd">${wd.charAt(0).toUpperCase() + wd.slice(1)}</div>
         <div class="cal-day-ds">${ds}</div>
       </div>
-      <div class="cal-day-body" style="height:${bodyHeight}px">
+      <div class="${bodyCls}" style="height:${bodyHeight}px">
         ${events}
       </div>
+      ${night}
     </div>`;
   }).join("");
 
@@ -263,6 +293,7 @@ function initActivityDragDrop(START_HOUR, HOUR_PX) {
         startH: rect.height,
         day: Number(evt.dataset.day),
         id: Number(evt.dataset.id),
+        offset: Number(evt.dataset.offset) || 0,
       };
       handle.setPointerCapture(e.pointerId);
       evt.classList.add("resizing");
@@ -275,7 +306,7 @@ function initActivityDragDrop(START_HOUR, HOUR_PX) {
     handle.addEventListener("pointerup", () => {
       if (!resize) return;
       const finalH = parseFloat(evt.style.height);
-      const minutes = Math.max(15, Math.round((finalH / HOUR_PX) * 60 / SNAP_MIN) * SNAP_MIN);
+      const minutes = resize.offset + Math.max(15, Math.round((finalH / HOUR_PX) * 60 / SNAP_MIN) * SNAP_MIN);
       updateActivity(resize.day, resize.id, "durationMin", minutes);
       resize = null;
       evt.classList.remove("resizing");
@@ -321,7 +352,7 @@ function initActivityDragDrop(START_HOUR, HOUR_PX) {
     if (drag.el.parentElement !== targetBody) targetBody.appendChild(drag.el);
     const r = targetBody.getBoundingClientRect();
     let top = e.clientY - r.top - drag.offsetY;
-    top = Math.max(0, Math.min(top, r.height - drag.el.offsetHeight));
+    top = Math.max(0, Math.min(top, r.height - HOUR_PX / 4));
     drag.el.style.top = top + "px";
     drag.newTop = top;
   }
@@ -389,6 +420,13 @@ function initActivityDragDrop(START_HOUR, HOUR_PX) {
   }
 
   grid.querySelectorAll(".cal-evt-act").forEach((evt) => {
+    if (evt.classList.contains("cal-evt-cont")) {
+      evt.addEventListener("click", (e) => {
+        if (e.target.closest(".evt-resize-handle")) return;
+        openActivityDetail(Number(evt.dataset.day), Number(evt.dataset.id), e);
+      });
+      return;
+    }
     evt.addEventListener("pointerdown", (e) => {
       if (e.target.closest(".evt-resize-handle")) return;
       if (e.button !== 0) return;
@@ -449,8 +487,10 @@ function openActivityDetail(dayIdx, actId, ev) {
     body.innerHTML = `
       <div class="detail-meta">
         ${act.time ? `<div class="detail-meta-time">🕒 ${escapeHtml(act.time)} · ${durTxt}</div>` : ""}
+        ${showsRealPlaces() && act.place ? `<div class="detail-meta-place">📍 ${escapeHtml(act.place)}</div>` : ""}
       </div>
       <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
+      ${showsRealPlaces() ? itineraryBtnHtml(act.latLng, act.shareName || act.place) : ""}
       <div class="detail-weather" id="dp-weather"></div>
       <div class="detail-share-desc">
         ${act.shareDescription
@@ -686,6 +726,7 @@ function openNightDetail(dayIdx, ev) {
     if (day.nightLocation) title.textContent = `Jour ${dayIdx + 1} · ${day.nightLocation}`;
     body.innerHTML = `
       <div class="detail-map-wrap"><div id="dp-map" class="detail-map"></div></div>
+      ${showsRealPlaces() ? itineraryBtnHtml(day.nightLatLng, day.nightLocation) : ""}
       <div class="detail-share-desc">
         ${day.nightShareDescription
           ? escapeHtml(day.nightShareDescription).replace(/\n/g, "<br>")
@@ -852,6 +893,29 @@ function initCalendarClickToCreate(START_HOUR, HOUR_PX) {
   });
 }
 
+function minToClock(min) {
+  const m = ((Math.round(min) % 1440) + 1440) % 1440;
+  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+}
+
+// Time zone of the destination, for sunrise / sunset in local time.
+function tripTimeZone() {
+  const f = state.flights || [];
+  return (f[0] && f[0].arriveTz) || (f[1] && f[1].departTz) || undefined;
+}
+
+// Where day i is spent: its night, else the previous one, else its first
+// located activity, else the arrival airport.
+function dayLocation(i) {
+  const day = state.days[i];
+  if (day && day.nightLatLng) return day.nightLatLng;
+  const prev = state.days[i - 1];
+  if (prev && prev.nightLatLng) return prev.nightLatLng;
+  const act = day && day.activities.find((a) => a.latLng);
+  if (act) return act.latLng;
+  return getDestAirportLatLng();
+}
+
 function timeToPos(time, startHour, hourPx) {
   if (!time) return 0;
   const [h, m] = time.split(":").map(Number);
@@ -865,7 +929,7 @@ function travelKey(from, to) {
 }
 
 async function fillTravelTimes(trip) {
-  if (isSurpriseView()) return; // blurred places: the times would mislead
+  if (!showsRealPlaces()) return; // blurred places: the times would mislead
   const myToken = ++fillTravelToken;
   const destLL = getDestAirportLatLng();
   const HOUR_PX = getCalVZoom();
@@ -912,7 +976,10 @@ async function fillTravelTimes(trip) {
           if (info) travelCache[key] = info;
         }
         if (myToken !== fillTravelToken) return;
-        if (info) {
+        if (info && el.classList.contains("cal-night-travel")) {
+          el.textContent = "🚗 " + info.text;
+          el.hidden = false;
+        } else if (info) {
           const h = Math.max(16, info.min * pxPerMin);
           const top = Number(el.dataset.activityTop) || 0;
           el.style.top = Math.max(0, top - h) + "px";
@@ -921,7 +988,7 @@ async function fillTravelTimes(trip) {
           const t = el.querySelector(".travel-text");
           if (t) t.textContent = info.text;
         }
-      } else if (el) {
+      } else if (el && !el.classList.contains("cal-night-travel")) {
         el.style.display = "none";
       }
       prev = wp.ll;

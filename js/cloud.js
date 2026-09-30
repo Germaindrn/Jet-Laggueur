@@ -629,7 +629,8 @@ function cloudRenderStatus() {
   pill.hidden = !st;
   if (!st) return;
   pill.className = "cloud-pill header-trip-only cloud-" + st.cls;
-  pill.textContent = st.text;
+  pill.innerHTML = `<span aria-hidden="true">☁</span><span class="btn-label">${st.text.replace(/^☁ /, "")}</span>`;
+  pill.setAttribute("aria-label", st.text);
   pill.title = st.title;
 }
 
@@ -748,6 +749,7 @@ function openCloudShare(idArg) {
       <a href="#" onclick="cloudRenameFromModal();return false;">Renommer cet appareil</a>
     </div>
     <div id="cloud-devices" class="cloud-devices">${cloudDevicesHtml(trip)}</div>
+    ${surprisePlacesToggleHtml(trip.id, "if (currentTripId === " + trip.id + " && currentView === 'trip') restoreUI();")}
     <div class="visitor-qr-wrap"><div id="cloud-qr" class="visitor-qr"></div>
       <div class="visitor-qr-caption">Scanne avec un téléphone</div></div>
     <div id="cloud-status" class="modal-status"></div>
