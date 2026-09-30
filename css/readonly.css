@@ -535,3 +535,44 @@ body.hide-travel .tl-travel {
   margin-top: 6px;
   justify-content: flex-end;
 }
+
+/* Undo (header, managing only) */
+.undo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.undo-btn[hidden] { display: none; }
+.undo-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Device list: remove button, removed devices */
+.cloud-device-remove {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--sand);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cloud-device-remove:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.cloud-removed-head {
+  padding: 6px 10px 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border-top: 1px solid var(--sand);
+}
+
+.cloud-device.removed { opacity: 0.7; }
+
+.cloud-device .cloud-role-select { width: auto; }

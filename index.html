@@ -9,19 +9,19 @@
   <link rel="apple-touch-icon" href="icon.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/theme.css?v=12">
-  <link rel="stylesheet" href="css/header.css?v=12">
-  <link rel="stylesheet" href="css/layout.css?v=12">
-  <link rel="stylesheet" href="css/buttons.css?v=12">
-  <link rel="stylesheet" href="css/modal.css?v=12">
-  <link rel="stylesheet" href="css/forms.css?v=12">
-  <link rel="stylesheet" href="css/flights.css?v=12">
-  <link rel="stylesheet" href="css/map.css?v=12">
-  <link rel="stylesheet" href="css/calendar.css?v=12">
-  <link rel="stylesheet" href="css/detail.css?v=12">
-  <link rel="stylesheet" href="css/readonly.css?v=12">
-  <link rel="stylesheet" href="css/responsive.css?v=12">
-  <link rel="stylesheet" href="css/home.css?v=12">
+  <link rel="stylesheet" href="css/theme.css?v=13">
+  <link rel="stylesheet" href="css/header.css?v=13">
+  <link rel="stylesheet" href="css/layout.css?v=13">
+  <link rel="stylesheet" href="css/buttons.css?v=13">
+  <link rel="stylesheet" href="css/modal.css?v=13">
+  <link rel="stylesheet" href="css/forms.css?v=13">
+  <link rel="stylesheet" href="css/flights.css?v=13">
+  <link rel="stylesheet" href="css/map.css?v=13">
+  <link rel="stylesheet" href="css/calendar.css?v=13">
+  <link rel="stylesheet" href="css/detail.css?v=13">
+  <link rel="stylesheet" href="css/readonly.css?v=13">
+  <link rel="stylesheet" href="css/responsive.css?v=13">
+  <link rel="stylesheet" href="css/home.css?v=13">
 </head>
 <body class="view-home">
 
@@ -30,6 +30,7 @@
   <div class="header-actions">
     <button class="btn btn-ghost btn-sm header-trip-only home-btn" onclick="openHome()" title="Retour à l'accueil" aria-label="Retour à l'accueil"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/></svg><span class="btn-label">Voyages</span></button>
     <input type="text" id="trip-title-input" class="header-trip-only" placeholder="Nom du voyage…" value="Mon Voyage">
+    <button id="undo-btn" class="btn btn-ghost btn-sm header-trip-only undo-btn" hidden disabled onclick="undo()" title="Annuler la dernière modification (Ctrl+Z)" aria-label="Annuler"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span class="btn-label">Annuler</span></button>
     <button id="mode-btn" class="btn btn-ghost btn-sm header-trip-only mode-btn" hidden onclick="toggleEditMode()"></button>
     <button id="cloud-pill" class="cloud-pill header-trip-only" hidden onclick="openCloudShare(currentTripId)"></button>
     <select id="theme-select" class="theme-select header-home-only" onchange="setTheme(this.value)" title="Thème"></select>
@@ -144,22 +145,22 @@
 </aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="js/data/airports.js?v=12"></script>
-<script src="js/data/timezones.js?v=12"></script>
-<script src="js/util.js?v=12"></script>
-<script src="js/state.js?v=12"></script>
-<script src="js/prefs.js?v=12"></script>
-<script src="js/map.js?v=12"></script>
-<script src="js/weather.js?v=12"></script>
-<script src="js/sun.js?v=12"></script>
-<script src="js/flights.js?v=12"></script>
-<script src="js/calendar.js?v=12"></script>
-<script src="js/ui.js?v=12"></script>
-<script src="js/sync.js?v=12"></script>
-<script src="js/cloud.js?v=12"></script>
-<script src="js/visitor.js?v=12"></script>
-<script src="js/readonly.js?v=12"></script>
-<script src="js/timeline.js?v=12"></script>
-<script src="js/init.js?v=12"></script>
+<script src="js/data/airports.js?v=13"></script>
+<script src="js/data/timezones.js?v=13"></script>
+<script src="js/util.js?v=13"></script>
+<script src="js/state.js?v=13"></script>
+<script src="js/prefs.js?v=13"></script>
+<script src="js/map.js?v=13"></script>
+<script src="js/weather.js?v=13"></script>
+<script src="js/sun.js?v=13"></script>
+<script src="js/flights.js?v=13"></script>
+<script src="js/calendar.js?v=13"></script>
+<script src="js/ui.js?v=13"></script>
+<script src="js/sync.js?v=13"></script>
+<script src="js/cloud.js?v=13"></script>
+<script src="js/visitor.js?v=13"></script>
+<script src="js/readonly.js?v=13"></script>
+<script src="js/timeline.js?v=13"></script>
+<script src="js/init.js?v=13"></script>
 </body>
 </html>

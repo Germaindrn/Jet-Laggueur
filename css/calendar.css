@@ -279,17 +279,18 @@ body.hide-travel .cal-evt-travel {
   display: none !important;
 }
 
+/* See-through, so an activity it overlaps stays readable. */
 .cal-evt-travel {
-  background: var(--navy);
+  background: color-mix(in srgb, var(--navy) 18%, transparent);
   border-left: 3px solid var(--gold);
-  color: #fff;
+  color: var(--text);
   cursor: default;
   pointer-events: none;
   padding: 4px 7px;
 }
 
 .cal-evt-travel .evt-compact-name {
-  color: #fff;
+  color: var(--text);
   font-weight: 600;
   font-size: 0.72rem;
 }

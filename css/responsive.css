@@ -401,3 +401,7 @@
     transform: translateY(calc(100dvh - 50vh - 64px));
   }
 }
+
+@media (max-width: 600px) {
+  .app-header .undo-btn { padding: 7px 9px; }
+}

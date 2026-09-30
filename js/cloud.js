@@ -396,14 +396,22 @@ function cloudSubscribe(trip) {
   const onError = (err) => { entry.error = cloudErrorText(err); cloudRenderStatus(); };
   entry.handler = entry.ref.on("value", (snap) => cloudOnRemote(entry, snap.val()), onError);
   const root = cloudDb(host).ref("trips/" + id);
+  entry.rootRef = root;
   entry.rolesRef = root.child("roles");
   entry.devicesRef = root.child("devices");
+  entry.removedRef = root.child("removed");
   entry.rolesHandler = entry.rolesRef.on("value", (snap) => cloudOnRoles(entry, snap.val()), onError);
   entry.devicesHandler = entry.devicesRef.on("value", (snap) => {
     entry.devices = snap.val() || {};
     cloudRefreshShareModal(entry.id);
   }, onError);
-  cloudRegisterDevice(entry);
+  // Registered once we know an admin has not removed this device.
+  entry.removedHandler = entry.removedRef.on("value", (snap) => {
+    entry.removed = snap.val() || {};
+    if (entry.removed[cloudDevice().id]) { cloudRemovedHere(entry); return; }
+    if (!entry.registered) { entry.registered = true; cloudRegisterDevice(entry); }
+    cloudRefreshShareModal(entry.id);
+  }, onError);
   cloudWatchConnection(host);
   return entry;
 }
@@ -415,6 +423,7 @@ function cloudUnsubscribe(cloudId) {
   e.ref.off("value", e.handler);
   e.rolesRef.off("value", e.rolesHandler);
   e.devicesRef.off("value", e.devicesHandler);
+  e.removedRef.off("value", e.removedHandler);
   cloudEntries.delete(cloudId);
 }
 
@@ -452,6 +461,8 @@ function cloudAdminIds(entry) {
 function cloudSetRole(cloudId, deviceId, role) {
   const e = cloudEntries.get(cloudId);
   if (!e || !CLOUD_ROLES[role]) return;
+  // A device never changes its own role: another admin has to.
+  if (deviceId === cloudDevice().id) { cloudRefreshShareModal(cloudId); return; }
   const admins = cloudAdminIds(e);
   if (role !== "admin" && admins.length === 1 && admins[0] === deviceId) {
     setCloudStatus("⚠ Il faut garder au moins un admin");
@@ -783,19 +794,81 @@ function cloudDevicesHtml(trip) {
   if (!rows.length) return '<p class="modal-hint">Aucun appareil enregistré.</p>';
   return rows.map((d) => {
     const seen = d.id === me ? "cet appareil" : (d.lastSeen ? "vu " + formatRelative(d.lastSeen) : "");
-    const control = canManage
+    const other = d.id !== me;
+    const control = canManage && other
       ? `<select class="cloud-role-select" onchange="cloudSetRole('${trip.cloud.id}','${escapeAttr(d.id)}',this.value)">
           ${Object.keys(CLOUD_ROLES).map((r) => `<option value="${r}" ${r === d.role ? "selected" : ""}>${CLOUD_ROLES[r].label}</option>`).join("")}
-        </select>`
+        </select>
+        <button type="button" class="cloud-device-remove" title="Retirer cet appareil du voyage" aria-label="Retirer"
+          onclick="cloudRemoveDevice('${trip.cloud.id}','${escapeAttr(d.id)}')">✕</button>`
       : `<span class="cloud-role-tag">${CLOUD_ROLES[d.role].label}</span>`;
-    return `<div class="cloud-device${d.id === me ? " me" : ""}">
+    return `<div class="cloud-device${other ? "" : " me"}">
       <div class="cloud-device-info">
         <div class="cloud-device-name">${d.platform === "app" ? "📱" : "🌐"} ${escapeHtml(d.name || "Appareil")}</div>
         <div class="cloud-device-meta">${escapeHtml(seen)}</div>
       </div>
       ${control}
     </div>`;
-  }).join("");
+  }).join("") + cloudRemovedHtml(trip, e, canManage);
+}
+
+// Devices an admin removed: listed apart, and can be let back in.
+function cloudRemovedHtml(trip, e, canManage) {
+  const removed = e.removed || {};
+  const ids = Object.keys(removed);
+  if (!ids.length) return "";
+  return `<div class="cloud-removed-head">Retirés</div>` + ids.map((id) => `<div class="cloud-device removed">
+      <div class="cloud-device-info">
+        <div class="cloud-device-name">${escapeHtml((removed[id] && removed[id].name) || "Appareil")}</div>
+        <div class="cloud-device-meta">${removed[id] && removed[id].at ? "retiré " + formatRelative(removed[id].at) : ""}</div>
+      </div>
+      ${canManage ? `<button type="button" class="btn btn-ghost btn-sm" onclick="cloudRestoreDevice('${trip.cloud.id}','${escapeAttr(id)}')">Réautoriser</button>` : ""}
+    </div>`).join("");
+}
+
+function cloudRemoveDevice(cloudId, deviceId) {
+  const e = cloudEntries.get(cloudId);
+  const trip = findCloudTrip(cloudId);
+  if (!e || !trip || !cloudIsAdmin(trip) || deviceId === cloudDevice().id) return;
+  const name = (e.devices && e.devices[deviceId] && e.devices[deviceId].name) || "cet appareil";
+  if (!confirm(`Retirer « ${name} » du voyage ?\n\nIl ne le verra plus et ne pourra plus le rejoindre, sauf si un admin le réautorise.`)) return;
+  e.rootRef.update({
+    ["removed/" + deviceId]: { name, at: Date.now() },
+    ["devices/" + deviceId]: null,
+    ["roles/" + deviceId]: null,
+  }).catch((err) => setCloudStatus("⚠ " + cloudErrorText(err)));
+}
+
+function cloudRestoreDevice(cloudId, deviceId) {
+  const e = cloudEntries.get(cloudId);
+  const trip = findCloudTrip(cloudId);
+  if (!e || !trip || !cloudIsAdmin(trip)) return;
+  e.removedRef.child(deviceId).set(null).catch((err) => setCloudStatus("⚠ " + cloudErrorText(err)));
+}
+
+// This device was removed by an admin: stop syncing and drop its copy.
+function cloudRemovedHere(entry) {
+  const trip = findCloudTrip(entry.id);
+  cloudUnsubscribe(entry.id);
+  cloudStoreBase(entry.id, null);
+  if (!trip) return;
+  allTrips = allTrips.filter((t) => t !== trip);
+  if (!allTrips.length) {
+    const id = Date.now();
+    const blank = { title: "Mon Voyage", numDays: 3, flights: [], days: [] };
+    allTrips.push({ id, title: blank.title, state: blank, updatedAt: id });
+    tripSigs.set(id, tripSignature(blank));
+  }
+  const wasOpen = currentTripId === trip.id;
+  if (wasOpen) {
+    currentTripId = allTrips[0].id;
+    state = getTripState(currentTripId);
+  }
+  cloudSaveTrips();
+  try { localStorage.setItem("voyageplanner_current", String(currentTripId)); } catch (e) {}
+  if (wasOpen && currentView === "trip") openHome();
+  else renderHome();
+  alert(`Un admin t'a retiré du voyage « ${trip.title || "Voyage"} ». Il a été supprimé de cet appareil.`);
 }
 
 // Live refresh of the device list while the share modal shows that trip.
@@ -898,6 +971,7 @@ async function cloudJoin(text) {
     ).catch((e) => { throw new Error(cloudErrorText(e)); });
     const node = snap.val();
     if (!node || !node.state) throw new Error("Voyage introuvable");
+    if (node.removed && node.removed[cloudDevice().id]) throw new Error("un admin t'a retiré de ce voyage");
     const next = decodeTripState(node.state);
     // Same trip already here without live sync (a JSONBin copy, say).
     trip = allTrips.find((t) => t.id === Number(node.localId) && !t.cloud) || null;

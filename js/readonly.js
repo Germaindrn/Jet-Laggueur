@@ -94,6 +94,16 @@ function applyModeUI() {
   }
   btn.innerHTML = uiIcon(icon) + `<span class="btn-label">${label}</span>`;
   btn.setAttribute("aria-label", label);
+  updateUndoBtn();
+}
+
+// Undo, for phones and tablets that have no Ctrl+Z: shown while managing,
+// greyed out when there is nothing to undo.
+function updateUndoBtn() {
+  const btn = document.getElementById("undo-btn");
+  if (!btn) return;
+  btn.hidden = isReadOnly();
+  btn.disabled = !history.length;
 }
 
 // Sober line icons for the header (they inherit the text colour).

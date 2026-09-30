@@ -142,17 +142,21 @@ function renderCalendar() {
       </div>`;
     }
 
-    // Tail of yesterday's late activities, from midnight
+    // Activities started on an earlier day, from midnight; one lasting
+    // several days fills whole columns until its last one, which holds the
+    // resize handle.
+    const nextCarry = [];
     carry.forEach((c) => {
       const colorStyle = c.act.color ? `--act-color:${c.act.color};` : "";
-      const heightPx = Math.max(20, (c.mins / 60) * HOUR_PX);
-      events += `<div class="cal-evt cal-evt-act cal-evt-cont" style="${colorStyle}top:0;height:${heightPx}px"
+      const last = c.mins <= DAY_MIN;
+      const heightPx = Math.max(20, (Math.min(c.mins, DAY_MIN) / 60) * HOUR_PX);
+      events += `<div class="cal-evt cal-evt-act cal-evt-cont${last ? "" : " spans"}" style="${colorStyle}top:0;height:${heightPx}px"
         id="evt-cont-${i}-${c.act.id}" data-day="${c.day}" data-id="${c.act.id}" data-offset="${c.offset}">
         <div class="evt-compact"><span class="evt-compact-name">↳ ${c.label}</span></div>
-        <div class="evt-resize-handle" title="Étirer pour changer la durée"></div>
+        ${last ? '<div class="evt-resize-handle" title="Étirer pour changer la durée"></div>' : ""}
       </div>`;
+      if (!last) nextCarry.push({ ...c, offset: c.offset + DAY_MIN, mins: c.mins - DAY_MIN });
     });
-    const nextCarry = [];
 
     // Activities
     day.activities.forEach((act, j) => {
@@ -166,7 +170,7 @@ function renderCalendar() {
       const evtLabel = visitorCal
         ? escapeHtml(act.shareName || `Activité ${String.fromCharCode(65 + j)}`)
         : escapeHtml(act.name || "Sans titre");
-      if (spans) nextCarry.push({ act, day: i, label: evtLabel, offset: DAY_MIN - start, mins: Math.min(start + dur - DAY_MIN, DAY_MIN) });
+      if (spans) nextCarry.push({ act, day: i, label: evtLabel, offset: DAY_MIN - start, mins: start + dur - DAY_MIN });
       events += `<div class="cal-evt cal-evt-travel" id="travel-act-${act.id}" data-activity-top="${top}" style="top:${top}px;height:0;display:none">
         <div class="evt-compact"><span class="evt-compact-name travel-text"></span></div>
       </div>`;
@@ -904,25 +908,28 @@ function initCalendarClickToCreate(START_HOUR, HOUR_PX) {
   });
 }
 
-// Tail of a travel block that starts before midnight, drawn at the bottom
-// of day `dayIdx` (nothing before the first day).
+// Part of a travel block that starts before midnight: drawn up from the
+// bottom of day `dayIdx`, then of the days before it if it is longer than
+// a day (nothing before the first day).
 function drawTravelOverflow(dayIdx, px, text, id) {
-  const old = document.getElementById(id);
-  if (old) old.remove();
-  if (dayIdx < 0 || px <= 0) return;
-  const dayEl = document.querySelectorAll("#calendar-grid .cal-day")[dayIdx];
-  const body = dayEl && dayEl.querySelector(".cal-day-body");
-  if (!body) return;
-  const bodyH = parseFloat(body.style.height) || body.offsetHeight;
-  const h = Math.min(px, bodyH);
-  const div = document.createElement("div");
-  div.className = "cal-evt cal-evt-travel cut-bottom";
-  div.id = id;
-  div.style.top = (bodyH - h) + "px";
-  div.style.height = h + "px";
-  div.innerHTML = `<div class="evt-compact"><span class="evt-compact-name travel-text"></span></div>`;
-  div.querySelector(".travel-text").textContent = text;
-  body.appendChild(div);
+  const days = document.querySelectorAll("#calendar-grid .cal-day");
+  for (let d = dayIdx; d >= 0 && px > 0; d--) {
+    const old = document.getElementById(`${id}-${d}`);
+    if (old) old.remove();
+    const body = days[d] && days[d].querySelector(".cal-day-body");
+    if (!body) return;
+    const bodyH = parseFloat(body.style.height) || body.offsetHeight;
+    const h = Math.min(px, bodyH);
+    px -= h;
+    const div = document.createElement("div");
+    div.className = "cal-evt cal-evt-travel cut-bottom" + (px > 0 ? " cut-top" : "");
+    div.id = `${id}-${d}`;
+    div.style.top = (bodyH - h) + "px";
+    div.style.height = h + "px";
+    div.innerHTML = `<div class="evt-compact"><span class="evt-compact-name travel-text"></span></div>`;
+    div.querySelector(".travel-text").textContent = text;
+    body.appendChild(div);
+  }
 }
 
 function minToClock(min) {

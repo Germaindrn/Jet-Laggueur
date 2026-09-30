@@ -108,13 +108,19 @@ let suspendHistory = false;
 
 function saveState() {
   if (!suspendHistory) {
-    if (lastSnapshot !== null) {
-      history.push(lastSnapshot);
-      if (history.length > HISTORY_MAX) history.shift();
+    let snap = null;
+    try { snap = JSON.stringify(state); } catch (e) {}
+    // Redraws save too (ensureDays): only a real change is an undo step.
+    if (snap !== lastSnapshot) {
+      if (lastSnapshot !== null) {
+        history.push(lastSnapshot);
+        if (history.length > HISTORY_MAX) history.shift();
+      }
+      lastSnapshot = snap;
     }
-    try { lastSnapshot = JSON.stringify(state); } catch (e) {}
   }
   saveAll();
+  if (typeof updateUndoBtn === "function") updateUndoBtn();
 }
 
 function undo() {
@@ -133,6 +139,7 @@ function undo() {
     renderCalendar();
     updateMap();
   } catch (e) {}
+  if (typeof updateUndoBtn === "function") updateUndoBtn();
 }
 
 function formatRelative(ts) {
@@ -193,6 +200,9 @@ function switchTrip(id) {
   localStorage.setItem("voyageplanner_current", String(currentTripId));
   focusedDay = null;
   editMode = false; // every trip opens read-only, even for its admins
+  // Undo steps belong to the trip they were taken on.
+  history.length = 0;
+  lastSnapshot = null;
   setView("trip");
   restoreUI();
   if (typeof syncCheckRemote === "function") syncCheckRemote();

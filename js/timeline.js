@@ -32,13 +32,17 @@ function tlDayItems(i, date) {
   const depart = flights.find((f) => f.ev === "depart");
   const items = [];
   if (arrive) items.push({ kind: "flight", start: tlMinutes(arrive.arriveTime), f: arrive });
-  // What is left of yesterday's activities running past midnight.
-  const prev = state.days[i - 1];
-  if (prev) prev.activities.forEach((act, j) => {
-    const start = tlMinutes(act.time);
-    const end = start == null ? null : start + (Number(act.durationMin) || 60);
-    if (end > 1440) items.push({ kind: "cont", start: 0, end: Math.min(end - 1440, 1440), act, j, fromDay: i - 1 });
-  });
+  // Activities started on an earlier day still running today (one can last
+  // several days).
+  for (let k = 0; k < i; k++) {
+    const from = state.days[k];
+    if (!from) continue;
+    from.activities.forEach((act, j) => {
+      const start = tlMinutes(act.time);
+      const end = start == null ? null : start + (Number(act.durationMin) || 60) - (i - k) * 1440;
+      if (end > 0) items.push({ kind: "cont", start: 0, end: Math.min(end, 1440), act, j, fromDay: k });
+    });
+  }
   day.activities.forEach((act, j) => {
     const start = tlMinutes(act.time);
     const dur = Number(act.durationMin) || 60;
@@ -60,10 +64,10 @@ function tlItemHtml(i, it, visitor) {
     const color = act.color ? ` style="--act-color:${escapeAttr(act.color)}"` : "";
     return `<li class="tl-item tl-act tl-cont" data-start="0" data-end="${it.end}"${color}
       onclick="openActivityDetail(${it.fromDay}, ${act.id}, event)">
-      <div class="tl-time"><strong>00:00</strong><span>${tlClock(it.end)}</span></div>
+      <div class="tl-time"><strong>00:00</strong><span>${it.end >= 1440 ? "24:00" : tlClock(it.end)}</span></div>
       <div class="tl-card">
         <div class="tl-title">↳ ${escapeHtml(name)}</div>
-        <div class="tl-sub">Suite de la veille</div>
+        <div class="tl-sub">${it.fromDay === i - 1 ? "Suite de la veille" : `Suite du jour ${it.fromDay + 1}`}${it.end >= 1440 ? " · toute la journée" : ""}</div>
       </div>
     </li>`;
   }
